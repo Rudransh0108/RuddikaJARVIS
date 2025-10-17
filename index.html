@@ -1,1454 +1,1003 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jarvis — Web Voice Assistant (Ultimate)</title>
-<link rel="manifest" href="manifest_v2.json">
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(e => console.warn('SW register failed', e));
-  }
-</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>J.A.R.V.I.S — HUD Mobile Voice Assistant</title>
+<link rel="icon" href="data:,">
 <style>
-  body {
-  margin: 0;
-  background: #000;
-  font-family: 'Arial', sans-serif;
-  color: #00ffff;
-  overflow: hidden;
-}
-
-.hud-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  grid-template-rows: repeat(10, 1fr);
-  height: 100vh;
-  width: 100vw;
-  position: relative;
-}
-
-.hud-circle {
-  grid-column: 4 / span 4;
-  grid-row: 4 / span 4;
-  border: 3px solid #00ffff;
-  border-radius: 50%;
-  box-shadow: 0 0 20px #00ffff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-
-.hud-center {
-  font-size: 1.2rem;
-  color: #00ffff;
-}
-
-.hud-time, .hud-network {
-  position: absolute;
-  padding: 10px;
-  border: 2px solid #00ffff;
-  box-shadow: 0 0 10px #00ffff;
-  border-radius: 5px;
-  font-size: 0.9rem;
-}
-
-.hud-time { top: 20px; right: 20px; }
-.hud-network { bottom: 20px; left: 20px; }
-
-.hud-greeting {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  font-size: 1rem;
-  color: #00ffff;
-}
-/* ==========================
-   THEME (Jarvis) - orange/green
-   ========================== */
+/* =========================
+   HUD THEME - Mobile first
+   ========================= */
 :root{
-  --bg:#081018;
-  --card:#09121a;
-  --muted:#9aa6b3;
-  --accent:#ff6a00; /* orange warm accent */
-  --accent2:#22c55e; /* green secondary */
-  --glass: rgba(255,255,255,0.03);
-  --success: #22c55e;
-  --danger: #ff6a00;
+  --bg:#02060a;
+  --grid:#04121a;
+  --neon:#00e6ff;
+  --neon-2:#22ff9f;
+  --card: rgba(0,0,0,0.25);
+  --glass: rgba(255,255,255,0.02);
+  --muted: #7fb6c5;
+  --accent: #00e6ff;
+  --accent2: #22ff9f;
+  --hud-padding: 14px;
+  --radius: 12px;
 }
-html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#041018 0%, #081018 100%); color:#e6eef8}
-.wrap{max-width:1100px; margin:18px auto; padding:18px;}
-header{display:flex;align-items:center;gap:16px}
-h1{font-size:20px;margin:0}
-.subtitle{color:var(--muted); font-size:13px}
-.controls{display:flex;gap:8px; margin-top:14px; flex-wrap:wrap}
-button{background:var(--card); color:inherit;border:1px solid rgba(255,255,255,0.03); padding:10px 12px; border-radius:8px; cursor:pointer}
-button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#022; font-weight:700}
-.panel{margin-top:18px; display:grid; grid-template-columns: 1fr 420px; gap:16px}
-.card{background:var(--glass); border-radius:10px; padding:14px; box-shadow:0 6px 24px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03)}
-#left {min-height:520px}
-#right {min-height:520px}
-#transcript{min-height:160px; background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; color:#dff0d8; overflow:auto}
-#log{height:260px; overflow:auto; font-size:13px; color:var(--muted); background: rgba(255,255,255,0.01); padding:8px; border-radius:6px}
-.row{display:flex; gap:8px; align-items:center}
-label{font-size:13px;color:var(--muted)}
-input[type="text"], input[type="search"], textarea{flex:1; padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit}
-.hint{font-size:12px;color:var(--muted); margin-top:8px}
-.smallbtn{padding:6px 8px; font-size:13px}
-.status{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03); color:var(--muted); font-size:13px}
-.command-list{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
-.cmd{background:rgba(255,255,255,0.02); padding:8px;border-radius:6px;font-size:13px;color:var(--muted); cursor:pointer}
-footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
-.kbd{background:#071827;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04); font-weight:700}
-.muted{color:var(--muted)}
-.utility-dock{max-width:1100px; margin: 12px auto 22px; padding:12px; display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
-.util{ background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); color:#e6eef8; padding:12px; border-radius:12px; text-align:center; font-size:14px; cursor:pointer }
-.util small{ display:block; color:#94a3b8; font-size:12px; margin-top:4px }
-.overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9999; color: #fff; font-family: inherit; }
-#powerOverlay { background: rgba(0,0,0,0.98); flex-direction: column; gap:18px; }
-#powerSpinner { width:64px;height:64px;border-radius:50%; border:6px solid rgba(255,255,255,0.12); border-top-color:#fff; animation: spin 1s linear infinite}
-@keyframes spin { to{ transform: rotate(360deg);} }
-#cameraOverlay { background: rgba(0,0,0,0.94); color:#fff; flex-direction: column; gap:10px; }
-#cameraView { width:min(92vw,960px); height: min(70vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06) }
-#cameraView video{ width:100%; height:100%; object-fit:cover }
-.overlayTopBar{ position: fixed; top:14px; left:50%; transform: translateX(-50%); display:flex; gap:8px; align-items:center; background:rgba(255,255,255,0.04); padding:8px 12px; border:1px solid rgba(255,255,255,0.06); border-radius:999px; z-index:10000; color:#fff }
-.overlayTopBar button{ background:transparent; border:1px solid rgba(255,255,255,0.12); color:#fff; padding:8px 10px; border-radius:999px; cursor:pointer }
-#lockOverlay{ background: rgba(0,0,0,0.9); color:#fff; flex-direction:column; gap:12px; text-align:center }
-#flashlightOverlay{ background:#ffffff; display:none } /* white screen to simulate torch */
-.badge-line{ text-align:center; color:#94a3b8; font-size:12px; margin-bottom:18px }
-#boomCanvas { position: fixed; inset:0; pointer-events:none; z-index:11000; display:none }
-.hidden{ display:none !important; }
-select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:inherit; border:1px solid rgba(255,255,255,0.03) }
-.voice-meter { width:100%; height:36px; background:rgba(255,255,255,0.02); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.03) }
-.voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 120ms linear; }
-.mem-list { max-height:180px; overflow:auto; padding:6px; background: rgba(255,255,255,0.01); border-radius:8px; margin-top:8px; }
-@media (max-width:980px){ .panel{grid-template-columns:1fr} #right{order:2} }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(ellipse at center,#021018 0%, #000 70%); font-family:Inter, "Segoe UI", Roboto, Arial, sans-serif; color:#cfeffd; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale}
+body {overflow:hidden;}
+
+/* grid background lines */
+.hud-bg{
+  position:fixed; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02)),
+    radial-gradient(circle at 50% 20%, rgba(0,120,140,0.03), transparent 25%);
+  background-size: 18px 18px, 18px 18px, 100% 100%, 100% 100%;
+}
+
+/* main container */
+.container {
+  position:relative;
+  width:100%;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1;
+  padding:22px;
+}
+
+/* central ironman silhouette area */
+.holo {
+  width:100%;
+  max-width:820px;
+  height:calc(100vh - 140px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  pointer-events:none;
+}
+
+/* central ring */
+.holo-ring {
+  width:44vw; height:44vw;
+  max-width:420px; max-height:420px;
+  border-radius:50%;
+  border:3px solid rgba(0,230,255,0.06);
+  box-shadow:0 0 32px rgba(0,230,255,0.08), inset 0 0 30px rgba(34,255,159,0.02);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  backdrop-filter: blur(2px);
+}
+
+/* rotating inner scan */
+.holo-ring::before{
+  content:'';
+  position:absolute; inset:0; border-radius:50%;
+  background: conic-gradient(from 90deg, rgba(0,230,255,0.02), rgba(34,255,159,0.02));
+  mask: radial-gradient(circle at center, rgba(255,255,255,1) 45%, rgba(0,0,0,0) 46%);
+  animation: spinSlow 8s linear infinite;
+  pointer-events:none;
+}
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+
+.holo-core{
+  width:36%; height:36%;
+  background: radial-gradient(circle at 30% 30%, rgba(0,255,255,0.16), rgba(0,0,0,0.02));
+  border-radius:50%;
+  box-shadow: 0 0 36px rgba(0,230,255,0.14), inset 0 0 14px rgba(34,255,159,0.08);
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+}
+.holo-core .label{
+  font-size:14px; letter-spacing:4px; color:var(--neon); text-shadow: 0 0 12px rgba(0,230,255,0.6);
+}
+
+/* silhouette image - behind ring */
+.holo-silhouette{
+  position:absolute; width:52vw; max-width:520px; opacity:0.24; filter:contrast(140%) saturate(100%) hue-rotate(180deg);
+  pointer-events:none; mix-blend-mode:screen;
+}
+
+/* corner info boxes */
+.info-box {
+  position:fixed; z-index:2; padding:10px 12px; border-radius:12px;
+  border:1px solid rgba(0,230,255,0.14); background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+  box-shadow: 0 6px 30px rgba(0,0,0,0.6), 0 0 18px rgba(0,230,255,0.03);
+  color:var(--neon); font-weight:600; letter-spacing:0.6px;
+  backdrop-filter: blur(6px);
+}
+.info-box small{ display:block; font-size:12px; color:var(--muted); font-weight:400; margin-top:6px;}
+
+.info-top-left{ left:12px; top:12px; }
+.info-top-right{ right:12px; top:12px; text-align:right; }
+.info-bottom-center{ left:50%; transform:translateX(-50%); bottom:82px; text-align:center; color:#7feaff; }
+
+/* Start Listening big button */
+.listen-btn {
+  position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:3;
+  background: linear-gradient(90deg, rgba(0,230,255,0.12), rgba(34,255,159,0.06));
+  border: 2px solid rgba(0,230,255,0.3);
+  color: #eaffff; font-weight:700; letter-spacing:1px;
+  padding:16px 26px; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.6);
+  cursor:pointer; font-size:16px;
+  text-shadow:0 0 8px rgba(0,230,255,0.36);
+}
+.listen-btn.glow { animation: pulseGlow 1.6s infinite; box-shadow: 0 10px 36px rgba(0,230,255,0.18); }
+@keyframes pulseGlow {
+  0%{ box-shadow:0 6px 24px rgba(0,230,255,0.12) }
+  50%{ box-shadow:0 20px 56px rgba(34,255,159,0.22) }
+  100%{ box-shadow:0 6px 24px rgba(0,230,255,0.12) }
+}
+
+/* small HUD message area */
+.hud-msg {
+  position:fixed; bottom:86px; left:50%; transform:translateX(-50%); z-index:3;
+  color:#7feaff; font-family:monospace; letter-spacing:0.6px; font-size:14px;
+  text-shadow:0 0 8px rgba(0,200,255,0.2);
+}
+
+/* top-left system error (thin) */
+.hud-error {
+  position:fixed; bottom:48px; left:50%; transform:translateX(-50%); z-index:3; color:#ff9b9b; font-weight:600;
+  text-shadow: 0 0 6px rgba(255,120,120,0.18);
+}
+
+/* hidden panels (overlay modals) */
+.overlay {
+  position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0.85));
+}
+.overlay .panel {
+  width:92%; max-width:640px; border-radius:12px; padding:18px; background: linear-gradient(180deg, rgba(10,20,28,0.7), rgba(2,6,10,0.8));
+  border:1px solid rgba(0,230,255,0.06); color:#dff9fb;
+}
+
+.overlay.flex { display:flex; }
+
+/* camera view */
+.camera-box { width:100%; height:56vh; background:#000; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+.camera-box video { width:100%; height:100%; object-fit:cover; }
+
+/* small controls inside overlays */
+.btn-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.btn { padding:8px 12px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); color:var(--muted); cursor:pointer; font-weight:600; }
+.btn.primary{ background:linear-gradient(90deg,var(--neon),var(--neon-2)); color:#022; border:none; }
+
+/* mem list */
+.mem-list { max-height:220px; overflow:auto; margin-top:10px; background:rgba(255,255,255,0.02); border-radius:8px; padding:8px; color:#cfeffd; }
+
+/* voice meter bottom-left */
+.voice-indicator { position:fixed; left:12px; bottom:16px; z-index:3; width:160px; background:rgba(255,255,255,0.02); border-radius:8px; padding:6px; border:1px solid rgba(255,255,255,0.03); display:flex; align-items:center; gap:8px; }
+.voice-bar { flex:1; height:10px; background:rgba(0,0,0,0.2); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.02); }
+.voice-bar > i { display:block; height:100%; width:0%; background: linear-gradient(90deg,var(--neon),var(--neon-2)); transition:width 120ms linear; }
+
+/* small footer credits */
+.credit { position:fixed; right:12px; bottom:14px; color:var(--muted); font-size:12px; z-index:3; }
+
+/* responsive tweaks */
+@media(min-width:900px){
+  .holo { height:calc(100vh - 120px); }
+  .listen-btn{ bottom:30px; font-size:18px; padding:16px 30px;}
+}
 </style>
 </head>
 <body>
-  <div class="hud-grid">
-  <div class="hud-circle">
-    <div class="hud-center">J.A.R.V.I.S</div>
+  <div class="hud-bg"></div>
+
+  <!-- corner info -->
+  <div class="info-box info-top-left" id="downlinkBox">
+    <div style="font-size:15px">Downlink</div>
+    <div style="font-size:18px; font-weight:800; margin-top:6px;" id="downlinkValue">-- Mbps</div>
+    <small id="downlinkNote">Network</small>
   </div>
 
-  <div class="hud-time">
-    <span>Time</span>
-    <span id="currentTime">--:--:--</span>
+  <div class="info-box info-top-right" id="timeBox">
+    <div style="font-size:15px">System Time</div>
+    <div style="font-size:18px; font-weight:800; margin-top:6px;" id="sysTime">--:--:--</div>
+    <small id="sysDate">--</small>
   </div>
 
-  <div class="hud-network">
-    <span>Network Speed</span>
-    <span id="networkSpeed">-- Mbps</span>
-  </div>
-
-  <div class="hud-greeting">
-    Hello, boss
-  </div>
-  </div>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>Jarvis — Web Voice Assistant</h1>
-        <div class="subtitle">Speak commands or type them. Works in Chrome/Edge. No server required.</div>
+  <!-- central holo -->
+  <div class="container">
+    <div class="holo" role="main" aria-label="Jarvis HUD">
+      <!-- silhouette behind -->
+      <img src="data:image/svg+xml;utf8,<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg' width='600' height='1000'><g fill='none' stroke='%2300e6ff' stroke-opacity='0.15' stroke-width='2'><path d='M300 40 C 260 60 240 120 240 200 C240 300 260 420 240 520 C220 620 260 800 300 900' /></g></svg>" class="holo-silhouette" alt="">
+      <!-- ring -->
+      <div class="holo-ring" id="holoRing">
+        <div class="holo-core"><div class="label">J.A.R.V.I.S</div></div>
       </div>
-      <div style="margin-left:auto;text-align:right">
-        <div class="status" id="listenStatus">Idle</div>
-        <div style="height:6px"></div>
-        <div class="muted" style="font-size:12px">Language: <span id="langLabel">English (en-US)</span></div>
-      </div>
-    </header>
-
-    <div class="controls">
-      <button id="btnStart" class="primary">Start Listening</button>
-      <button id="btnStop">Stop</button>
-      <button id="btnWake">Wake-word: <span id="wakeState">Off</span></button>
-      <label style="margin-left:6px;color:var(--muted)">Custom wake:</label>
-      <input id="wakeInput" type="text" placeholder="e.g. Oye Jarvis" style="width:160px"/>
-      <button id="btnSaveWake" class="smallbtn">Save</button>
-      <button id="btnToggleVoice">Toggle Voice Reply</button>
-      <button id="btnClearLog" class="smallbtn">Clear Log</button>
-      <select id="langSelect" class="verysmall">
-        <option value="en-US">English (en-US)</option>
-        <option value="hi-IN">Hindi (hi-IN)</option>
-      </select>
-      <label style="margin-left:8px;color:var(--muted)">Voice:</label>
-      <select id="voiceSelect" class="verysmall"></select>
-      <button id="btnSaveMemory" title="Save memory (e.g. remember my birthday)">💾 Save Memory</button>
-      <button id="btnShowMemory" title="Show saved memories">🗂️ Memories</button>
     </div>
+  </div>
 
+  <!-- center HUD message + error -->
+  <div class="hud-msg" id="hudMsg">Say "Hey Jarvis" or press Start Listening</div>
+  <div class="hud-error" id="hudError" style="display:none">Error: not-allowed. Please try again.</div>
+
+  <!-- Start button -->
+  <button class="listen-btn glow" id="btnStart">Start Listening</button>
+
+  <!-- voice meter -->
+  <div class="voice-indicator" title="Voice level">
+    <div style="font-size:12px; color:var(--muted); min-width:56px">Voice</div>
+    <div class="voice-bar"><i id="voiceBarInner"></i></div>
+  </div>
+
+  <div class="credit">Built by Rudransh</div>
+
+  <!-- overlays -->
+  <div id="cameraOverlay" class="overlay" aria-hidden="true">
     <div class="panel">
-      <div id="left" class="card">
-        <h3>Say or type a command</h3>
-        <div id="transcript">Press <span class="kbd">Start Listening</span> and speak — or type below.</div>
-
-        <div style="margin-top:12px" class="row">
-          <input id="cmdInput" type="text" placeholder="e.g. open youtube / what is the time / search cats" />
-          <button id="btnSend" class="smallbtn">Send</button>
-        </div>
-
-        <div class="hint">Tip: Say <b>"Hey Jarvis"</b> (or your custom wake) to activate when wake-word is ON. Try: <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds</em></div>
-
-        <div style="margin-top:12px">
-          <strong>Quick commands</strong>
-          <div class="command-list">
-            <div class="cmd" data-cmd="open youtube">open youtube</div>
-            <div class="cmd" data-cmd="open google">open google</div>
-            <div class="cmd" data-cmd="search cats">search cats</div>
-            <div class="cmd" data-cmd="time">time</div>
-            <div class="cmd" data-cmd="date">date</div>
-            <div class="cmd" data-cmd="wiki tesla">wiki tesla</div>
-            <div class="cmd" data-cmd="calculate 12 + 34">calculate 12 + 34</div>
-            <div class="cmd" data-cmd="set timer 15 seconds">set timer 15 seconds</div>
-            <div class="cmd" data-cmd="play music">play music</div>
-            <div class="cmd" data-cmd="tell me a joke">tell me a joke</div>
-          </div>
-        </div>
-
-        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
-
-        <h4>Extra features (voice shortcuts)</h4>
-        <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
-          <button class="smallbtn" id="btnWeather">Weather</button>
-          <button class="smallbtn" id="btnNews">Top News</button>
-          <button class="smallbtn" id="btnQuote">Motivate Me</button>
-          <button class="smallbtn" id="btnSpotify">Play on Spotify</button>
-          <button class="smallbtn" id="btnTranslate">Translate</button>
-          <button class="smallbtn" id="btnScreenshot">Screenshot</button>
-          <button class="smallbtn" id="btnSelfDestruct">Self-Destruct!</button>
-        </div>
-
-        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
-
-        <div style="margin-top:8px">
-          <strong>Games</strong>
-          <div class="row" style="margin-top:8px; gap:8px; flex-wrap:wrap">
-            <button id="btnRPS" class="smallbtn">Rock Paper Scissors</button>
-            <button id="btnGuess" class="smallbtn">Guess Number</button>
-          </div>
-        </div>
-
-        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
-
-        <h4>Voice / Mood meter</h4>
-        <div class="voice-meter" id="voiceMeter"><div></div></div>
-        <div class="hint">Jarvis listens to loudness to infer mood (basic heuristic).</div>
-
-        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
-
-        <h4>Face-login (optional)</h4>
-        <div class="row" style="gap:8px; align-items:center">
-          <button id="btnFaceCapture" class="smallbtn">Capture Face (Enroll)</button>
-          <button id="btnFaceLogin" class="smallbtn">Login with Face</button>
-          <div id="faceStatus" class="muted" style="margin-left:8px">No face enrolled</div>
-        </div>
-        <div id="facePreview" style="margin-top:8px"></div>
-
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:800; color:var(--neon)">Camera</div>
+        <div><button class="btn" id="closeCam">Close</button></div>
       </div>
-
-      <div id="right" class="card">
-        <h3>Activity Log</h3>
-        <div id="log"></div>
-
-        <h4 style="margin-top:12px">Settings</h4>
-        <div class="row" style="margin-top:6px">
-          <label>Voice reply:</label>
-          <input type="checkbox" id="chkVoice" checked />
-        </div>
-        <div class="row" style="margin-top:6px">
-          <label>Continuous listen:</label>
-          <input type="checkbox" id="chkContinuous" />
-        </div>
-        <div class="row" style="margin-top:6px">
-          <label>Wake-word required:</label>
-          <input type="checkbox" id="chkWakeReq" />
-        </div>
-
-        <h4 style="margin-top:12px">Memories</h4>
-        <div style="display:flex; gap:8px; margin-top:6px;">
-          <input id="memInput" placeholder="Note to remember" />
-          <button id="memAdd" class="smallbtn">Add</button>
-        </div>
-        <div class="mem-list" id="memList"></div>
-
-        <div style="margin-top:10px" class="muted">Supported in Chrome/Edge. Safari support is limited.</div>
+      <div class="camera-box" style="margin-top:12px;">
+        <video id="camVid" autoplay playsinline muted></video>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="snapCam">Snap</button>
+        <button class="btn" id="switchCam">Switch Camera</button>
       </div>
     </div>
+  </div>
 
-    <div class="utility-dock">
-      <div class="util" data-cmd="power off phone">Power Off<small>voice: power off phone</small></div>
-      <div class="util" data-cmd="restart phone">Restart<small>voice: restart phone</small></div>
-      <div class="util" data-cmd="flashlight on">Flashlight On<small>torch on</small></div>
-      <div class="util" data-cmd="flashlight off">Flashlight Off</div>
-      <div class="util" data-cmd="open camera">Open Camera</div>
-      <div class="util" data-cmd="close camera">Close Camera</div>
-      <div class="util" data-cmd="open whatsapp">Open WhatsApp</div>
-      <div class="util" data-cmd="open gallery">Open Gallery</div>
-      <div class="util" data-cmd="battery status">Battery Status</div>
-      <div class="util" data-cmd="device info">Device Info</div>
-      <div class="util" data-cmd="keep screen on">Keep Screen On</div>
-      <div class="util" data-cmd="allow sleep">Allow Sleep</div>
-      <div class="util" data-cmd="vibrate">Vibrate</div>
-      <div class="util" data-cmd="lock screen">Lock Screen</div>
-      <div class="util" data-cmd="unlock screen">Unlock Screen</div>
+  <div id="memOverlay" class="overlay" aria-hidden="true">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:800; color:var(--neon)">Memories</div>
+        <div><button class="btn" id="closeMem">Close</button></div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="display:flex; gap:8px;">
+          <input id="memText" placeholder="Remember something..." style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:#dff9fb"/>
+          <button class="btn primary" id="memAddBtn">Add</button>
+        </div>
+        <div class="mem-list" id="memList" aria-live="polite"></div>
+      </div>
     </div>
-
-    <div class="badge-line">Extra features (weather/news/quotes/spotify/games/camera/memory/wakeword/mood/face-login) — all client-side.</div>
-
-    <footer>
-      Built for you — say hi and try commands. DEVELOPED BY RUDRANSH PANDEY (A GENIUS).  
-    </footer>
   </div>
 
-  <!-- Overlays -->
-  <div id="powerOverlay" class="overlay">
-    <div id="powerSpinner"></div>
-    <div id="powerLogo" style="font-size:22px; letter-spacing:4px; opacity:0.95">S H U T T I N G &nbsp; D O W N</div>
-    <div id="restartText" style="font-size:14px; opacity:0.9"></div>
-  </div>
-
-  <div id="flashlightOverlay" class="overlay" style="display:none"></div>
-
-  <div id="lockOverlay" class="overlay">
-    <div style="font-size:28px; letter-spacing:2px">🔒 Screen Locked</div>
-    <div>Say <b>"unlock screen"</b> or press the unlock button below</div>
-    <button class="btn" id="unlockBtn" style="padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#fff; cursor:pointer">Unlock</button>
-  </div>
-
-  <div id="cameraOverlay" class="overlay">
-    <div class="overlayTopBar">
-      <button id="btnCloseCamera">Close</button>
-      <button id="btnSwitchCamera">Switch</button>
-      <button id="btnCameraSnap">Snap</button>
+  <div id="lockOverlay" class="overlay" aria-hidden="true" style="align-items:flex-start; padding-top:16vh;">
+    <div class="panel" style="max-width:480px; text-align:center;">
+      <div style="font-size:22px; color:var(--neon); font-weight:800">🔒 Screen Locked</div>
+      <div style="margin-top:8px; color:var(--muted)">Say "unlock screen" or press unlock</div>
+      <div style="margin-top:14px"><button class="btn primary" id="unlockBtn">Unlock</button></div>
     </div>
-    <div id="cameraView"><video id="camVideo" autoplay playsinline muted></video></div>
   </div>
 
-  <canvas id="boomCanvas"></canvas>
+  <canvas id="boomCanvas" style="position:fixed; inset:0; z-index:60; display:none; pointer-events:none;"></canvas>
 
 <script>
-/* ============================================================
-   Jarvis — Big single-file assistant
-   - Original commands preserved (open/search/wiki/calc/timer/music/joke)
-   - New features added: custom wake word, face-capture login (enroll), mood detector (basic), weather shortcut, translate shortcut, memories UI, improved self-destruct, better screenshot, voice meter visualization, voice selection.
-   - All client-side, no backend.
-   ============================================================ */
-(function(){
-  // Basic feature detection
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const synth = window.speechSynthesis;
+/* =====================================================
+   Jarvis HUD — JS: Voice commands + UI wiring
+   Mobile-first, works in Chrome/Edge on Android
+   ===================================================== */
 
-  // UI elements
-  const btnStart = document.getElementById('btnStart');
-  const btnStop = document.getElementById('btnStop');
-  const btnWake = document.getElementById('btnWake');
-  const btnToggleVoice = document.getElementById('btnToggleVoice');
-  const btnClearLog = document.getElementById('btnClearLog');
-  const langSelect = document.getElementById('langSelect');
-  const langLabel = document.getElementById('langLabel');
-  const listenStatus = document.getElementById('listenStatus');
-  const transcriptEl = document.getElementById('transcript');
-  const cmdInput = document.getElementById('cmdInput');
-  const btnSend = document.getElementById('btnSend');
-  const logEl = document.getElementById('log');
-  const chkVoice = document.getElementById('chkVoice');
-  const chkContinuous = document.getElementById('chkContinuous');
-  const wakeStateSpan = document.getElementById('wakeState');
-  const chkWakeReq = document.getElementById('chkWakeReq');
-  const voiceSelect = document.getElementById('voiceSelect');
-  const btnSaveMemory = document.getElementById('btnSaveMemory');
-  const btnShowMemory = document.getElementById('btnShowMemory');
-  const wakeInput = document.getElementById('wakeInput');
-  const btnSaveWake = document.getElementById('btnSaveWake');
+'use strict';
 
-  const btnWeather = document.getElementById('btnWeather');
-  const btnNews = document.getElementById('btnNews');
-  const btnQuote = document.getElementById('btnQuote');
-  const btnSpotify = document.getElementById('btnSpotify');
-  const btnTranslate = document.getElementById('btnTranslate');
-  const btnScreenshot = document.getElementById('btnScreenshot');
-  const btnSelfDestruct = document.getElementById('btnSelfDestruct');
-  const btnRPS = document.getElementById('btnRPS');
-  const btnGuess = document.getElementById('btnGuess');
+/* -------------------------
+   Feature detection & state
+   ------------------------- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const synth = window.speechSynthesis || null;
 
-  const powerOverlay = document.getElementById('powerOverlay');
-  const restartText = document.getElementById('restartText');
-  const flashlightOverlay = document.getElementById('flashlightOverlay');
-  const lockOverlay = document.getElementById('lockOverlay');
-  const unlockBtn = document.getElementById('unlockBtn');
-  const cameraOverlay = document.getElementById('cameraOverlay');
-  const camVideo = document.getElementById('camVideo');
-  const btnCloseCamera = document.getElementById('btnCloseCamera');
-  const btnSwitchCamera = document.getElementById('btnSwitchCamera');
-  const btnCameraSnap = document.getElementById('btnCameraSnap');
-  const boomCanvas = document.getElementById('boomCanvas');
-  const voiceMeter = document.getElementById('voiceMeter').firstElementChild;
+let recognition = null;
+let listening = false;
+let continuous = false;
+let voiceEnabled = true;
+let wakeWord = 'hey jarvis';
+let wakeRequired = false;
+let usingBackCamera = true;
 
-  const btnFaceCapture = document.getElementById('btnFaceCapture');
-  const btnFaceLogin = document.getElementById('btnFaceLogin');
-  const faceStatus = document.getElementById('faceStatus');
-  const facePreview = document.getElementById('facePreview');
+let camStream = null;
+let audioContext = null;
+let analyser = null;
+let meterData = null;
+let reqAnim = null;
 
-  const memInput = document.getElementById('memInput');
-  const memAdd = document.getElementById('memAdd');
-  const memList = document.getElementById('memList');
+/* -------------------------
+   DOM references
+   ------------------------- */
+const btnStart = document.getElementById('btnStart');
+const hudMsg = document.getElementById('hudMsg');
+const hudError = document.getElementById('hudError');
+const sysTime = document.getElementById('sysTime');
+const sysDate = document.getElementById('sysDate');
+const downlinkValue = document.getElementById('downlinkValue');
+const voiceBarInner = document.getElementById('voiceBarInner');
+const holoRing = document.getElementById('holoRing');
 
-  // State
-  let recognition = null;
-  let listening = false;
-  let wakeWordOn = false;
-  let lastTranscript = '';
-  let lang = 'en-US';
-  let camStream = null;
-  let usingBackCam = true;
-  let wakeRequired = false;
-  let availableVoices = [];
-  let audioContext = null;
-  let analyser = null;
-  let meterDataArray = null;
-  let meterSource = null;
-  let faceDataUrl = localStorage.getItem('jarvis_face') || null;
-  let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
+const cameraOverlay = document.getElementById('cameraOverlay');
+const camVid = document.getElementById('camVid');
+const closeCam = document.getElementById('closeCam');
+const snapCam = document.getElementById('snapCam');
+const switchCam = document.getElementById('switchCam');
 
-  // small datasets
-  const jokes = [
-    "Why did the developer go broke? Because he used up all his cache.",
-    "Why do programmers prefer dark mode? Because the light attracts bugs.",
-    "I told my computer I needed a break, and it said — no problem, I'll go to sleep."
-  ];
-  const quotes = [
-    "The best time to plant a tree was 20 years ago. The second best time is now.",
-    "Don't watch the clock; do what it does. Keep going.",
-    "You don't have to be great to start, but you have to start to be great."
-  ];
+const memOverlay = document.getElementById('memOverlay');
+const closeMem = document.getElementById('closeMem');
+const memAddBtn = document.getElementById('memAddBtn');
+const memText = document.getElementById('memText');
+const memList = document.getElementById('memList');
 
-  // Logging helper
-  function log(message, type='info'){
-    const time = new Date().toLocaleTimeString();
-    const el = document.createElement('div');
-    el.innerHTML = `<strong style="color:${type==='err'?'#ff9b8a':'#9ae6b4'}">${time}</strong> — <span style="color:${type==='err'?'#ffb3b3':'#cfe8ff'}">${escapeHtml(message)}</span>`;
-    logEl.prepend(el);
+const lockOverlay = document.getElementById('lockOverlay');
+const unlockBtn = document.getElementById('unlockBtn');
+
+const boomCanvas = document.getElementById('boomCanvas');
+
+/* -------------------------
+   Helpers
+   ------------------------- */
+function logUI(msg){
+  hudMsg.textContent = msg;
+}
+function showError(msg){
+  hudError.textContent = msg;
+  hudError.style.display = 'block';
+  setTimeout(()=> hudError.style.display = 'none', 3000);
+}
+function speak(text, opts = {}){
+  if(!voiceEnabled || !synth) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = opts.lang || 'en-US';
+    u.rate = opts.rate || 1;
+    u.pitch = opts.pitch || 1;
+    synth.cancel();
+    synth.speak(u);
+  } catch(e) {
+    console.warn('Speak failed:', e);
   }
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+}
 
-  // Speak helper with voice selection
-  function populateVoices(){
-    availableVoices = synth.getVoices() || [];
-    voiceSelect.innerHTML = '';
-    availableVoices.forEach((v, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `${v.name} — ${v.lang} ${v.default ? '(default)' : ''}`;
-      voiceSelect.appendChild(opt);
-    });
-    // select previous if stored
-    const stored = localStorage.getItem('jarvis_voice_index');
-    if(stored && availableVoices[stored]) voiceSelect.value = stored;
+/* -------------------------
+   Time & network updaters
+   ------------------------- */
+function updateClock(){
+  const now = new Date();
+  sysTime.textContent = now.toLocaleTimeString();
+  sysDate.textContent = now.toLocaleDateString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* lightweight downlink estimation (measure download of small blob) */
+let lastDown = '--';
+async function measureDownlink(){
+  try {
+    const start = performance.now();
+    // request a small image from a CDN (no-cache)
+    const url = 'https://upload.wikimedia.org/wikipedia/commons/3/3f/Placeholder_view_vector.svg?rnd=' + Math.random();
+    const r = await fetch(url, {cache:'no-store', mode:'no-cors'});
+    const duration = (performance.now() - start) / 1000;
+    // size unknown due to no-cors; approximate with 30KB
+    const sizeKB = 30;
+    const mbps = (sizeKB * 8) / (duration * 1000);
+    const val = mbps < 0.01 ? '<0.01' : mbps.toFixed(2);
+    downlinkValue.textContent = val + ' Mbps';
+  } catch(e){
+    downlinkValue.textContent = '-- Mbps';
   }
-  if(synth) {
-    populateVoices();
-    if(typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = populateVoices;
+}
+setInterval(measureDownlink, 7000);
+measureDownlink();
+
+/* -------------------------
+   Voice meter using WebAudio
+   ------------------------- */
+async function startVoiceMeter(){
+  try {
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    if(!audioContext){
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+    const src = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    const bufferLen = analyser.frequencyBinCount;
+    meterData = new Uint8Array(bufferLen);
+    function loop(){
+      analyser.getByteFrequencyData(meterData);
+      let sum = 0;
+      for(let i=0;i<meterData.length;i++){ sum += meterData[i]; }
+      const avg = sum / meterData.length;
+      const pct = Math.min(100, Math.round((avg / 255) * 100));
+      voiceBarInner.style.width = pct + '%';
+      // small holo ring reaction
+      holoRing.style.transform = `scale(${1 + pct/220})`;
+      reqAnim = requestAnimationFrame(loop);
+    }
+    reqAnim = requestAnimationFrame(loop);
+    // stop saved stream on stopVoiceMeter
+    startVoiceMeter._stream = stream;
+  } catch(e){
+    // ignore meter errors
   }
-  function speak(text, opts = {}){
-    if(!chkVoice.checked) return;
-    if(!synth) return;
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = opts.lang || lang;
-      u.rate = opts.rate || 1.0;
-      u.pitch = opts.pitch || 1.0;
-      if(voiceSelect.value && availableVoices[voiceSelect.value]) u.voice = availableVoices[voiceSelect.value];
-      synth.cancel(); // stop previous
-      synth.speak(u);
-      log('Jarvis: ' + text);
-    } catch (e) {
-      console.error('synth error', e);
-    }
+}
+function stopVoiceMeter(){
+  if(reqAnim) cancelAnimationFrame(reqAnim);
+  reqAnim = null;
+  voiceBarInner.style.width = '0%';
+  holoRing.style.transform = '';
+  if(startVoiceMeter._stream){
+    startVoiceMeter._stream.getTracks().forEach(t=>t.stop());
+    startVoiceMeter._stream = null;
   }
+  if(analyser){ analyser.disconnect(); analyser = null; }
+}
 
-  // Recognition setup (keeps original behavior)
-  function setupRecognition(){
-    if(!SpeechRecognition) {
-      listenStatus.textContent = 'SpeechRecognition not supported';
-      btnStart.disabled = true; btnStop.disabled = true;
-      return;
-    }
-    recognition = new SpeechRecognition();
-    recognition.lang = lang;
-    recognition.interimResults = false;
-    recognition.continuous = chkContinuous.checked;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      listening = true;
-      listenStatus.textContent = 'Listening...';
-      btnStart.textContent = 'Listening';
-      log('Voice recognition started');
-      // start mic meter
-      startVoiceMeter();
-    };
-
-    recognition.onend = () => {
-      listening = false;
-      listenStatus.textContent = 'Idle';
-      btnStart.textContent = 'Start Listening';
-      log('Voice recognition stopped', 'info');
-      stopVoiceMeter();
-      if(chkContinuous.checked && recognition){
-        setTimeout(()=> { try{ recognition.start() } catch(e){} }, 250);
-      }
-    };
-
-    recognition.onerror = (ev) => {
-      log('Speech error: ' + ev.error, 'err');
-      stopVoiceMeter();
-    };
-
-    recognition.onresult = (ev) => {
-      const res = ev.results[ev.results.length - 1][0].transcript.trim();
-      lastTranscript = res;
-      addTranscriptEntry('User: ' + res);
-      log('Heard: ' + res);
-      // special wake behavior: if wake required or custom set, use it
-      const lw = res.toLowerCase();
-      const wakeNormalized = customWake ? customWake.toLowerCase() : 'hey jarvis';
-      if(chkWakeReq.checked){
-        if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
-          const stripped = lw.replace(/^.*?(hey jarvis|ok jarvis|"+wakeNormalized+")[, ]*/,'').trim();
-          const command = stripped ? stripped : '';
-          if(command) handleCommand(command);
-          else { speak('Yes?'); }
-          return;
-        } else {
-          log('Ignored — wake-word required', 'info');
-          return;
-        }
-      } else {
-        if(wakeWordOn){
-          if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
-            // Strip wake phrase and handle remainder
-            let cmd = lw;
-            // Try to remove either the custom wake or common variants
-            if(customWake) cmd = cmd.replace(new RegExp(customWake, 'i'),'').trim();
-            cmd = cmd.replace(/^.*?(hey jarvis|ok jarvis)[, ]*/i,'').trim();
-            if(cmd) handleCommand(cmd);
-            else { speak('Yes?'); }
-            return;
-          }
-        }
-        handleCommand(res);
-      }
-    };
+/* -------------------------
+   Recognition setup
+   ------------------------- */
+function setupRecognition(){
+  if(!SpeechRecognition){
+    logUI('SpeechRecognition not supported. Use Chrome.');
+    btnStart.disabled = true;
+    return;
   }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = continuous;
 
-  // Main command handler (keeps original behavior + extras)
-  async function handleCommand(textRaw){
-    const text = textRaw.trim();
-    if(!text) return;
-    // show in UI
-    addTranscriptEntry('User: ' + text);
-    const lower = text.toLowerCase();
-
-    // small talk
-    if(/^(hi|hello|hey|hey jarvis|ok jarvis)\b/.test(lower)){
-      speak('Hello. How can I help?');
-      addTranscriptEntry('Jarvis: greeting');
-      return;
-    }
-
-    // time/date
-    if(lower.includes('time')) {
-      const now = new Date();
-      const out = `It is ${now.toLocaleTimeString()}`;
-      speak(out);
-      addTranscriptEntry('Jarvis: ' + out);
-      return;
-    }
-    if(lower.includes('date')) {
-      const now = new Date();
-      const out = `Today is ${now.toLocaleDateString()}`;
-      speak(out);
-      addTranscriptEntry('Jarvis: ' + out);
-      return;
-    }
-
-    // open website
-    if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify|maps)\b/)) {
-      let site = 'https://google.com';
-      if(lower.includes('youtube')) site = 'https://youtube.com';
-      else if(lower.includes('wikipedia')) site = 'https://wikipedia.org';
-      else if(lower.includes('github')) site = 'https://github.com';
-      else if(lower.includes('spotify')) site = 'https://open.spotify.com';
-      else if(lower.includes('maps')) site = 'https://maps.google.com';
-      speak('Opening ' + site.replace(/^https?:\/\//,''));
-      window.open(site, '_blank');
-      addTranscriptEntry('Jarvis: opening ' + site);
-      return;
-    }
-
-    // search
-    if(lower.startsWith('search ') || lower.startsWith('google ')) {
-      const q = text.replace(/^(search|google)\s+/i,'').trim();
-      if(!q){ speak('What do you want me to search?'); return; }
-      speak('Searching Google for ' + q);
-      const url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
-      window.open(url, '_blank');
-      addTranscriptEntry('Jarvis: searched for ' + q);
-      return;
-    }
-
-    // wiki
-    if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')) {
-      const term = text.replace(/^(wiki|wikipedia)\s+/i,'').trim();
-      if(!term){ speak('What do you want from Wikipedia?'); return; }
-      speak('Searching Wikipedia for ' + term);
-      addTranscriptEntry('Jarvis: fetching wikipedia for ' + term);
-      try {
-        const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term);
-        const r = await fetch(api);
-        if(!r.ok) { speak('No Wikipedia page found for ' + term); return; }
-        const j = await r.json();
-        const extract = j.extract ? j.extract.split('. ').slice(0,2).join('. ') + '.' : 'No summary available.';
-        speak(extract);
-        addTranscriptEntry('Wiki: ' + extract);
-      } catch (e) {
-        speak('Failed to fetch Wikipedia.');
-        addTranscriptEntry('Wiki error: ' + e.message, 'err');
-      }
-      return;
-    }
-
-    // calculate
-    if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9\+\-\*\/\. ]+$/.test(lower)) {
-      const expr = text.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
-      if(!expr){ speak('I could not parse the expression'); return; }
-      try {
-        const val = Function('"use strict";return (' + expr + ')')();
-        speak('The result is ' + val);
-        addTranscriptEntry('Calc: ' + expr + ' = ' + val);
-      } catch (e) {
-        speak('Sorry, cannot calculate that.');
-        addTranscriptEntry('Calc error: ' + e.message, 'err');
-      }
-      return;
-    }
-
-    // timer / reminder
-    if(lower.startsWith('set timer') || lower.startsWith('timer ')) {
-      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|secs|mins)?/);
-      if(!m){ speak('Please tell me the time in seconds or minutes'); return; }
-      let num = parseInt(m[1],10);
-      let unit = (m[2]||'seconds').toLowerCase();
-      let ms = (unit.startsWith('min')) ? num * 60 * 1000 : num * 1000;
-      speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-      addTranscriptEntry('Timer: ' + num + ' ' + unit);
-      setTimeout(()=>{
-        speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-        alert('Timer finished: ' + num + ' ' + unit);
-      }, ms);
-      return;
-    }
-
-    // play music -> spotify or youtube
-    if(lower.includes('play music') || lower.includes('play song') || lower.includes('play spotify')) {
-      speak('Opening Spotify playlist');
-      window.open('https://open.spotify.com', '_blank');
-      return;
-    }
-
-    // jokes
-    if(lower.includes('joke')) {
-      const j = jokes[Math.floor(Math.random()*jokes.length)];
-      speak(j);
-      addTranscriptEntry('Joke: ' + j);
-      return;
-    }
-
-    // motivational quote
-    if(lower.includes('motivate') || lower.includes('motivation') || lower.includes('quote')) {
-      const q = quotes[Math.floor(Math.random()*quotes.length)];
-      speak(q);
-      addTranscriptEntry('Quote: ' + q);
-      return;
-    }
-
-    // weather quick (uses wttr.in)
-    if(lower.includes('weather')) {
-      const m = lower.match(/weather in ([a-zA-Z\s]+)/);
-      const q = m ? m[1].trim() : '';
-      if(q) {
-        speak('Opening weather for ' + q);
-        window.open('https://wttr.in/' + encodeURIComponent(q), '_blank');
-      } else {
-        speak('Opening weather report');
-        window.open('https://wttr.in/?format=3', '_blank');
-      }
-      return;
-    }
-
-    // translate -> google translate
-    if(lower.startsWith('translate ')) {
-      const m = text.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i);
-      if(m){
-        const phrase = m[1]; const target = m[2];
-        speak('Translating to ' + target);
-        window.open('https://translate.google.com/?sl=auto&tl='+encodeURIComponent(target)+'&text='+encodeURIComponent(phrase)+'&op=translate', '_blank');
-        return;
-      } else {
-        speak('Opening Google Translate');
-        window.open('https://translate.google.com', '_blank');
-        return;
-      }
-    }
-
-    // memory: remember / recall
-    if(lower.startsWith('remember ')){
-      const mem = text.replace(/^remember\s+/i,'').trim();
-      if(mem){
-        const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-        mems.push({text:mem, time: Date.now()});
-        localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-        speak('Done. I will remember: ' + mem);
-        addTranscriptEntry('Memory saved: ' + mem);
-        renderMemories();
-      } else speak('What should I remember?');
-      return;
-    }
-    if(lower.includes('what do you remember') || lower.includes('list memories') || lower.includes('what did i ask you to remember')){
-      const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-      if(mems.length===0){ speak('You have no saved memories.'); return; }
-      speak('You asked me to remember '+ mems.length + ' items. I will show them now.');
-      renderMemories(true);
-      return;
-    }
-
-    // screenshot
-    if(lower.includes('screenshot') || lower.includes('screen shot') || lower.includes('capture screen')){
-      takeScreenshot();
-      return;
-    }
-
-    // power actions (simulated)
-    if(lower.includes('power off') || lower.includes('shutdown')){
-      powerOffAnimation();
-      return;
-    }
-    if(lower.includes('restart')){
-      restartAnimation();
-      return;
-    }
-
-    // flashlight
-    if(lower.includes('flashlight on') || lower.includes('torch on')){
-      flashlight(true);
-      return;
-    }
-    if(lower.includes('flashlight off') || lower.includes('torch off')){
-      flashlight(false);
-      return;
-    }
-
-    // camera
-    if(lower.includes('open camera') || lower.includes('show camera')){
-      openCamera();
-      return;
-    }
-    if(lower.includes('close camera') || lower.includes('hide camera')){
-      closeCamera();
-      return;
-    }
-
-    // whatsapp/gallery
-    if(lower.includes('whatsapp')){
-      openWhatsApp();
-      return;
-    }
-    if(lower.includes('gallery')){
-      openGallery();
-      return;
-    }
-
-    // keep screen on
-    if(lower.includes('keep screen on') || lower.includes('stay awake')){
-      keepScreenOn();
-      return;
-    }
-    if(lower.includes('allow sleep') || lower.includes('allow to sleep')){
-      allowSleep();
-      return;
-    }
-
-    // vibrate
-    if(lower.includes('vibrate')){
-      vibrate();
-      return;
-    }
-
-    // lock/unlock
-    if(lower.includes('lock screen')){
-      lockScreen();
-      return;
-    }
-    if(lower.includes('unlock screen')){
-      unlockScreen();
-      return;
-    }
-
-    // news
-    if(lower.includes('news') || lower.includes('top news')){
-      openNews();
-      return;
-    }
-
-    // spotify
-    if(lower.includes('spotify') && lower.includes('play')){
-      window.open('https://open.spotify.com', '_blank');
-      return;
-    }
-
-    // physics wallah (special)
-    if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
-      speak("Opening Physics Wallah");
-      try{ window.location.href = "intent://#Intent;package=in.eduwall.pwclassroom;scheme=pw;end"; }catch(_){}
-      setTimeout(()=> window.open("https://www.pw.live/", "_blank"), 800);
-      return;
-    }
-
-    // fallback: ask to search
-    speak('I did not understand. Do you want me to search the web for ' + text + '?');
-    if(confirm('Search web for "' + text + '"?')) {
-      window.open('https://www.google.com/search?q=' + encodeURIComponent(text), '_blank');
-    }
-  }
-
-  // Transcript helper
-  function addTranscriptEntry(txt, type='sys'){
-    const p = document.createElement('div');
-    p.style.marginTop = '8px';
-    p.style.fontSize = '14px';
-    p.style.color = (type==='err' ? '#ffb3b3' : '#dbeafe');
-    p.textContent = txt;
-    transcriptEl.appendChild(p);
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
-  }
-
-  // Controls events
-  btnStart.addEventListener('click', () => {
-    if(!recognition) setupRecognition();
-    if(recognition && !listening){
-      try { recognition.start(); } catch(e){ console.warn(e); }
-    }
-  });
-  btnStop.addEventListener('click', stopListening);
-
-  btnWake.addEventListener('click', ()=> {
-    wakeWordOn = !wakeWordOn;
-    wakeStateSpan.textContent = wakeWordOn ? 'On' : 'Off';
-    log('Wake-word announce ' + (wakeWordOn ? 'enabled' : 'disabled'));
-  });
-
-  btnToggleVoice.addEventListener('click', ()=> {
-    chkVoice.checked = !chkVoice.checked;
-    log('Voice reply ' + (chkVoice.checked ? 'enabled' : 'disabled'));
-  });
-
-  btnClearLog.addEventListener('click', ()=> { logEl.innerHTML=''; transcriptEl.innerHTML=''; });
-
-  chkContinuous.addEventListener('change', ()=>{
-    if(recognition){
-      recognition.stop();
-      recognition = null;
-      setupRecognition();
-    }
-    log('Continuous: ' + chkContinuous.checked);
-  });
-
-  langSelect.addEventListener('change', ()=> {
-    lang = langSelect.value;
-    langLabel.textContent = (lang==='hi-IN' ? 'Hindi (hi-IN)' : 'English (en-US)');
-    if(recognition){
-      recognition.lang = lang;
-    }
-    log('Language set to ' + lang);
-  });
-
-  voiceSelect.addEventListener('change', ()=> {
-    localStorage.setItem('jarvis_voice_index', voiceSelect.value);
-  });
-
-  btnSend.addEventListener('click', ()=> {
-    const text = cmdInput.value.trim();
-    if(!text) return;
-    // first run extra handlers (add-ons) — they can intercept
-    if(!handleExtraCommand(text)) handleCommand(text);
-    cmdInput.value='';
-  });
-
-  cmdInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') btnSend.click(); });
-
-  function stopListening(){
-    if(recognition){
-      try { recognition.stop(); } catch(e){}
-      listening = false;
-      listenStatus.textContent = 'Idle';
-      log('Stopped listening');
-    }
+  recognition.onstart = () => {
+    listening = true;
+    btnStart.classList.add('glow');
+    btnStart.textContent = 'Listening...';
+    logUI('Listening — speak now');
+    startVoiceMeter();
+  };
+  recognition.onend = () => {
+    listening = false;
+    btnStart.classList.remove('glow');
+    btnStart.textContent = 'Start Listening';
+    logUI('Idle');
     stopVoiceMeter();
+    // if continuous mode, restart quickly
+    if(continuous && recognition) {
+      setTimeout(()=> {
+        try { recognition.start(); } catch(e){}
+      }, 300);
+    }
+  };
+  recognition.onerror = (ev) => {
+    console.warn('rec error', ev);
+    stopVoiceMeter();
+    showError('Voice error: ' + (ev.error || 'unknown'));
+    if(ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+      hudMsg.textContent = 'Microphone permission blocked. Allow microphone in site settings.';
+      speak('Microphone permission blocked, please allow it.');
+    }
+  };
+  recognition.onresult = (ev) => {
+    const res = ev.results[ev.results.length-1][0].transcript.trim();
+    handleHeard(res);
+  };
+}
+
+/* -------------------------
+   Command handling
+   ------------------------- */
+function handleHeard(textRaw){
+  const text = textRaw.trim();
+  logUI('Heard: ' + text);
+  // quick UI echo
+  flashHUDMessage('"' + text + '"');
+
+  const lower = text.toLowerCase();
+
+  // wake-word handling
+  if(wakeRequired){
+    if(!lower.includes(wakeWord) && !lower.includes('hey jarvis') && !lower.includes('ok jarvis')){
+      logUI('Ignored (wake word required)');
+      return;
+    }
+    // strip wake words
+    textCmd = lower.replace(wakeWord, '').replace('hey jarvis','').replace('ok jarvis','').trim();
+  } else {
+    var textCmd = lower;
+    // if wake-word present remove it
+    textCmd = textCmd.replace(wakeWord, '').replace('hey jarvis','').replace('ok jarvis','').trim();
   }
 
-  // initial setup
-  function init(){
-    transcriptEl.textContent = 'Press Start Listening and speak. You can also type commands below.';
-    lang = langSelect.value;
-    if(!customWake) customWake = 'hey jarvis';
-    wakeInput.value = customWake;
-    if(faceDataUrl) {
-      faceStatus.textContent = 'Face enrolled';
-      renderFacePreview(faceDataUrl);
-    }
-    populateVoices();
-    renderMemories();
-    setupRecognition();
-    log('Jarvis ready (enhanced)');
-    document.querySelectorAll('.cmd').forEach(c=>{
-      c.addEventListener('click', ()=> { const cmd = c.getAttribute('data-cmd'); if(!handleExtraCommand(cmd)) handleCommand(cmd); });
-    });
+  // handle simple conversation
+  if(/^hi\b|^hello\b|^hey\b/.test(textCmd)){
+    speak('Hello boss. Ready for commands.');
+    return;
   }
 
-  init();
-
-  // ========================
-  // Extra feature functions
-  // ========================
-
-  // Utility dock click -> command
-  document.querySelectorAll('.util').forEach(card=>{
-    card.addEventListener('click', ()=>{
-      const c = card.getAttribute('data-cmd');
-      if(!handleExtraCommand(c)) handleCommand(c);
-    });
-  });
-
-  // Buttons
-  btnWeather.addEventListener('click', ()=> { handleExtraCommand('weather'); });
-  btnNews.addEventListener('click', ()=> { handleExtraCommand('news'); });
-  btnQuote.addEventListener('click', ()=> { handleExtraCommand('motivate'); });
-  btnSpotify.addEventListener('click', ()=> { handleExtraCommand('play spotify'); });
-  btnTranslate.addEventListener('click', ()=> {
-    const phrase = prompt('Phrase to translate (will open Google Translate):');
-    if(phrase) window.open('https://translate.google.com/?sl=auto&tl=en&text=' + encodeURIComponent(phrase) + '&op=translate', '_blank');
-  });
-  btnScreenshot.addEventListener('click', takeScreenshot);
-  btnSelfDestruct.addEventListener('click', ()=> { runSelfDestruct(); });
-
-  btnRPS.addEventListener('click', ()=> { playRPS(); });
-  btnGuess.addEventListener('click', ()=> { playGuess(); });
-
-  btnSaveMemory.addEventListener('click', ()=>{
-    const txt = prompt('What should I remember?');
-    if(txt){
-      const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-      mems.push({text:txt, time: Date.now()});
-      localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-      speak('Saved that memory.');
-      log('Memory saved: ' + txt);
-      renderMemories();
-    }
-  });
-  btnShowMemory.addEventListener('click', showMemories);
-
-  memAdd.addEventListener('click', ()=>{
-    const t = memInput.value.trim();
-    if(!t) return;
-    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-    mems.push({text:t, time: Date.now()});
-    localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-    memInput.value='';
-    renderMemories();
-    speak('Memory added.');
-  });
-
-  btnSaveWake.addEventListener('click', ()=>{
-    const w = wakeInput.value.trim();
-    if(!w) return alert('Enter wake phrase');
-    customWake = w;
-    localStorage.setItem('jarvis_wake', w);
-    speak('Custom wake phrase saved as ' + w);
-    log('Custom wake phrase: ' + w);
-  });
-
-  // Face capture (enroll simple snapshot)
-  btnFaceCapture.addEventListener('click', async ()=>{
-    try{
-      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Camera not supported');
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
-      const v = document.createElement('video');
-      v.style.display = 'none';
-      v.srcObject = s;
-      document.body.appendChild(v);
-      await v.play();
-      await new Promise(r=>setTimeout(r,500));
-      const c = document.createElement('canvas');
-      c.width = v.videoWidth || 320;
-      c.height = v.videoHeight || 240;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(v,0,0,c.width,c.height);
-      const data = c.toDataURL('image/png');
-      localStorage.setItem('jarvis_face', data);
-      faceDataUrl = data;
-      renderFacePreview(data);
-      faceStatus.textContent = 'Face enrolled';
-      speak('Face captured and enrolled.');
-      // stop tracks
-      s.getTracks().forEach(t=>t.stop());
-      v.remove();
-    }catch(e){
-      alert('Face capture failed: ' + e.message);
-      log('Face capture error: ' + e.message, 'err');
-    }
-  });
-
-  // Face login (very simple compare by pixel diff)
-  btnFaceLogin.addEventListener('click', async ()=>{
-    if(!faceDataUrl) return alert('No face enrolled. Capture first.');
-    try{
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
-      const v = document.createElement('video');
-      v.style.display = 'none';
-      v.srcObject = s;
-      document.body.appendChild(v);
-      await v.play();
-      await new Promise(r=>setTimeout(r,500));
-      const c = document.createElement('canvas');
-      c.width = v.videoWidth || 320;
-      c.height = v.videoHeight || 240;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(v,0,0,c.width,c.height);
-      const current = c.toDataURL('image/png');
-      s.getTracks().forEach(t=>t.stop());
-      v.remove();
-      // compare simple: create image elements and compare data lengths / naive pixel comparison
-      const diff = await computeImageDiff(faceDataUrl, current);
-      if(diff < 0.12){ // threshold low -> very close
-        speak('Face matched. Welcome back.');
-        log('Face login successful (diff ' + diff.toFixed(3) + ')');
-        document.body.style.border = '6px solid rgba(34,197,94,0.25)';
-        setTimeout(()=> document.body.style.border = '', 2500);
-      } else {
-        speak('Face did not match.');
-        log('Face login failed (diff ' + diff.toFixed(3) + ')', 'err');
-        alert('Face did not match. Try enrolling again.');
-      }
-    }catch(e){
-      alert('Face login failed: ' + e.message);
-    }
-  });
-
-  function renderFacePreview(data){
-    facePreview.innerHTML = '';
-    const img = document.createElement('img');
-    img.src = data;
-    img.style.maxWidth = '120px';
-    img.style.borderRadius = '8px';
-    facePreview.appendChild(img);
+  // time/date
+  if(textCmd.includes('time')){
+    const now = new Date();
+    const out = 'It is ' + now.toLocaleTimeString();
+    speak(out); logUI(out); return;
+  }
+  if(textCmd.includes('date')){
+    const now = new Date();
+    const out = 'Today is ' + now.toLocaleDateString();
+    speak(out); logUI(out); return;
   }
 
-  // compute naive difference between two base64 png images by drawing and comparing pixel data (normalized)
-  async function computeImageDiff(aDataUrl, bDataUrl){
-    function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
-    const [ia, ib] = await Promise.all([loadImage(aDataUrl), loadImage(bDataUrl)]);
-    const w = Math.min(ia.width, ib.width, 160);
-    const h = Math.min(ia.height, ib.height, 120);
-    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta = ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
-    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb = cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
-    const da = cta.getImageData(0,0,w,h).data;
-    const db = ctb.getImageData(0,0,w,h).data;
-    let sum=0; let len=0;
-    for(let i=0;i<da.length;i+=4){
-      // compare luminance
-      const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2];
-      const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2];
-      sum += Math.abs(la-lb);
-      len++;
-    }
-    const avg = sum / (len*255);
-    return avg; // 0..1 (lower is better)
+  // open websites
+  if(/\bopen (youtube|google|wikipedia|github|spotify|maps|whatsapp)\b/.test(textCmd)){
+    if(textCmd.includes('youtube')) { speak('Opening YouTube'); window.open('https://youtube.com', '_blank'); return; }
+    if(textCmd.includes('google')) { speak('Opening Google'); window.open('https://google.com', '_blank'); return; }
+    if(textCmd.includes('wikipedia')) { speak('Opening Wikipedia'); window.open('https://wikipedia.org', '_blank'); return; }
+    if(textCmd.includes('github')) { speak('Opening GitHub'); window.open('https://github.com', '_blank'); return; }
+    if(textCmd.includes('spotify')) { speak('Opening Spotify'); window.open('https://open.spotify.com', '_blank'); return; }
+    if(textCmd.includes('maps')) { speak('Opening Maps'); window.open('https://maps.google.com', '_blank'); return; }
+    if(textCmd.includes('whatsapp')) { speak('Opening WhatsApp'); openWhatsApp(); return; }
   }
 
-  // MEMORIES rendering
-  function renderMemories(){
-    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-    memList.innerHTML = '';
-    if(mems.length===0){ memList.textContent = 'No memories saved'; return; }
-    mems.slice().reverse().forEach((m,i)=>{
-      const d = document.createElement('div');
-      d.style.padding = '6px'; d.style.borderBottom = '1px dashed rgba(255,255,255,0.03)';
-      d.innerHTML = `<strong style="color:#9ae6b4">${new Date(m.time).toLocaleString()}</strong><div style="margin-top:4px">${escapeHtml(m.text)}</div><div style="margin-top:6px"><button data-i="${mems.length-1-i}" class="mem-del smallbtn">Delete</button></div>`;
-      memList.appendChild(d);
-    });
-    memList.querySelectorAll('.mem-del').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const idx = parseInt(btn.getAttribute('data-i'),10);
-        const mm = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-        mm.splice(idx,1);
-        localStorage.setItem('jarvis_mems', JSON.stringify(mm));
-        renderMemories();
-        speak('Memory deleted');
+  // search
+  if(textCmd.startsWith('search ') || textCmd.startsWith('google ')){
+    const q = textCmd.replace(/^(search|google)\s+/,'').trim();
+    if(!q){ speak('What should I search?'); return; }
+    speak('Searching for ' + q);
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+    return;
+  }
+
+  // wikipedia summary
+  if(textCmd.startsWith('wiki ') || textCmd.startsWith('wikipedia ')){
+    const term = textCmd.replace(/^(wiki|wikipedia)\s+/,'').trim();
+    if(!term) { speak('What should I look up on Wikipedia?'); return; }
+    speak('Looking up ' + term);
+    fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term))
+      .then(r=>r.json()).then(j=>{
+        const ex = j.extract ? j.extract.split('. ').slice(0,2).join('. ') + '.' : 'No summary found.';
+        speak(ex);
+      }).catch(e=>{
+        speak('Failed to fetch Wikipedia.');
       });
-    });
-  }
-  function showMemories(){ renderMemories(); alert('Memories shown on the right panel.'); }
-
-  // CAMERA & flashlight
-  async function openCamera(){
-    try{
-      cameraOverlay.style.display='flex';
-      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-      camStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: usingBackCam ? {ideal:'environment'} : 'user' },
-        audio: false
-      });
-      camVideo.srcObject = camStream;
-      log('Camera opened');
-    }catch(e){
-      log('Camera error: ' + e.message, 'err');
-      alert('Camera permission or device error.');
-    }
-  }
-  function closeCamera(){
-    cameraOverlay.style.display='none';
-    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-    log('Camera closed');
-  }
-  btnCloseCamera.addEventListener('click', closeCamera);
-  btnSwitchCamera.addEventListener('click', async ()=>{
-    usingBackCam = !usingBackCam;
-    await openCamera();
-  });
-  btnCameraSnap.addEventListener('click', ()=>{
-    if(!camStream) return;
-    const v = camVideo;
-    const c = document.createElement('canvas');
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-    const url = c.toDataURL('image/png');
-    const a = document.createElement('a'); a.href = url; a.download='cam-snap.png'; a.click();
-    log('Camera snapshot taken');
-    speak('Snapshot saved');
-  });
-
-  function flashlight(on){
-    flashlightOverlay.style.display = on ? 'flex' : 'none';
-    if(on) flashlightOverlay.style.background = '#ffffff';
-    else flashlightOverlay.style.background = 'transparent';
-    log('Flashlight ' + (on ? 'on' : 'off'));
+    return;
   }
 
-  // battery status
-  async function batteryStatus(){
-    try{
-      if(!('getBattery' in navigator)){ alert('Battery API not supported'); return; }
-      const b = await navigator.getBattery();
-      const pct = Math.round(b.level*100);
-      const ch = b.charging ? 'charging' : 'not charging';
-      alert(`Battery: ${pct}% (${ch})`);
-      log(`Battery status: ${pct}% (${ch})`);
-    }catch(e){ log('Battery error: '+e.message, 'err'); }
+  // calculate expressions simple
+  if(textCmd.match(/^(calculate|what is) /) || /^[0-9\+\-\*\/\.\s\(\)]+$/.test(textCmd)){
+    const expr = textCmd.replace(/^(calculate|what is)\s+/,'').replace(/[^0-9+\-*/(). %]/g,'');
+    if(!expr){ speak('Cannot parse expression'); return; }
+    try {
+      const val = Function('"use strict";return (' + expr + ')')();
+      speak('Result is ' + val);
+    } catch(e){ speak('I could not calculate that'); }
+    return;
   }
 
-  function deviceInfo(){
-    const ua = navigator.userAgent;
-    const plat = navigator.platform;
-    const lang = navigator.language;
-    const info = `UA: ${ua}\nPlatform: ${plat}\nLanguage: ${lang}`;
-    alert(info);
-    log('Device info shown');
+  // timer
+  if(textCmd.startsWith('set timer') || textCmd.includes('timer')){
+    const m = textCmd.match(/(\d+)\s*(seconds|second|minutes|minute|mins|secs)?/);
+    if(!m){ speak('Please specify duration in seconds or minutes'); return; }
+    let num = parseInt(m[1],10);
+    let unit = (m[2]||'seconds');
+    let ms = unit.startsWith('min') ? num*60000 : num*1000;
+    speak('Timer set for ' + num + ' ' + unit);
+    setTimeout(()=> {
+      speak('Timer finished: ' + num + ' ' + unit);
+      alert('Timer finished: ' + num + ' ' + unit);
+    }, ms);
+    return;
   }
 
-  // wake lock (keep screen on)
-  let wakeLock = null;
-  async function keepScreenOn(){
-    try{
-      if('wakeLock' in navigator){
-        wakeLock = await navigator.wakeLock.request('screen');
-        log('Wake Lock active (screen on)');
-        window.addEventListener('visibilitychange', async ()=>{
-          if(document.visibilityState === 'visible' && wakeLock === null){
-            try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(_){}
-          }
-        });
-      } else {
-        alert('Wake Lock API not supported in this browser');
-      }
-    }catch(e){ log('Wake Lock error: '+e.message); }
-  }
-  function allowSleep(){
-    if(wakeLock){ try{ wakeLock.release(); }catch(_){} wakeLock=null; log('Wake Lock released'); }
+  // screenshot
+  if(textCmd.includes('screenshot') || textCmd.includes('capture screen')){
+    takeScreenshot();
+    return;
   }
 
-  // vibrate
-  function vibrate(){
-    if('vibrate' in navigator){
-      navigator.vibrate([60,40,60,40,120]);
-      log('Vibration pattern played');
-    } else {
-      alert('Vibration not supported on this device');
-    }
+  // camera controls
+  if(textCmd.includes('open camera') || textCmd.includes('show camera')){
+    openCameraOverlay(); return;
+  }
+  if(textCmd.includes('close camera') || textCmd.includes('hide camera')){
+    closeCameraOverlay(); return;
+  }
+
+  // flashlight
+  if(textCmd.includes('flashlight on') || textCmd.includes('torch on')){
+    flashlight(true); return;
+  }
+  if(textCmd.includes('flashlight off') || textCmd.includes('torch off')){
+    flashlight(false); return;
+  }
+
+  // power animations
+  if(textCmd.includes('power off') || textCmd.includes('shutdown')){
+    powerOffSim(); return;
+  }
+  if(textCmd.includes('restart')){
+    restartSim(); return;
   }
 
   // lock/unlock UI
-  function lockScreen(){
-    lockOverlay.style.display='flex';
-    log('Screen locked (UI)');
+  if(textCmd.includes('lock screen')){
+    lockScreen(); return;
   }
-  function unlockScreen(){
-    lockOverlay.style.display='none';
-    log('Screen unlocked (UI)');
-  }
-  unlockBtn.addEventListener('click', unlockScreen);
-
-  // open whatsapp
-  function openWhatsApp(){
-    try{ window.location.href = "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;end"; setTimeout(()=>window.open('https://web.whatsapp.com', '_blank'), 800); }catch(_){ window.open('https://web.whatsapp.com', '_blank'); }
-    log('WhatsApp request');
-  }
-  function openGallery(){ window.open('https://photos.google.com', '_blank'); log('Gallery opened'); }
-
-  // Power off / restart (UI simulation)
-  function powerOffAnimation(){
-    powerOverlay.style.display = 'flex';
-    restartText.textContent = 'Powering off...';
-    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
-    log('Simulated power off');
-  }
-  function restartAnimation(){
-    powerOverlay.style.display = 'flex';
-    restartText.textContent = 'Restarting...';
-    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
-    setTimeout(()=> {
-      document.body.style.filter='';
-      powerOverlay.style.display='none';
-      log('Simulated restart finished');
-    }, 3200);
-    log('Simulated restart');
+  if(textCmd.includes('unlock screen')){
+    unlockScreen(); return;
   }
 
-  // Screenshot using html2canvas (load dynamically)
-  async function takeScreenshot(){
-    if(typeof html2canvas === 'undefined'){
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  // memories
+  if(textCmd.startsWith('remember ')){
+    const mem = textCmd.replace(/^remember\s+/,'').trim();
+    if(!mem){ speak('What should I remember?'); return; }
+    addMemory(mem);
+    speak('Saved.');
+    return;
+  }
+  if(textCmd.includes('what do you remember') || textCmd.includes('list memories')){
+    openMemories(); return;
+  }
+
+  // games
+  if(textCmd.includes('rock') && textCmd.includes('paper') && textCmd.includes('scissors')){
+    playRPS(); return;
+  }
+  if(textCmd.includes('guess number')){
+    playGuess(); return;
+  }
+
+  // jokes & quotes
+  if(textCmd.includes('joke')){
+    const jokes = ["Why did the developer go broke? He used all his cache.","Why programmers prefer dark mode? The light attracts bugs."];
+    speak(jokes[Math.floor(Math.random()*jokes.length)]); return;
+  }
+  if(textCmd.includes('motivate') || textCmd.includes('quote')){
+    const quotes = ["The best time to start is now.","Keep going — do not stop."];
+    speak(quotes[Math.floor(Math.random()*quotes.length)]); return;
+  }
+
+  // fallback: ask to search
+  speak('I did not understand. Shall I search the web for ' + text + '?');
+  setTimeout(()=> {
+    if(confirm('Search web for "'+text+'" ?')) window.open('https://www.google.com/search?q=' + encodeURIComponent(text), '_blank');
+  }, 800);
+}
+
+/* -------------------------
+   HUD & small UI helpers
+   ------------------------- */
+function flashHUDMessage(text, ms=2200){
+  hudMsg.textContent = text;
+  setTimeout(()=> hudMsg.textContent = 'Say "Hey Jarvis" or press Start Listening', ms);
+}
+
+/* -------------------------
+   Start / Stop listening
+   ------------------------- */
+btnStart.addEventListener('click', async ()=>{
+  if(!recognition) setupRecognition();
+  // If not listening -> start, else stop
+  if(!listening){
+    try {
+      await requestMicrophonePermission();
+      recognition.start();
+    } catch(e){
+      console.warn('start error', e);
+      showError('Microphone permission blocked or error');
     }
-    try{
-      speak('Taking screenshot');
-      const node = document.documentElement;
-      const canvas = await html2canvas(node, { logging:false, useCORS:true, scale:1 });
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url; a.download = 'screenshot.png'; document.body.appendChild(a); a.click(); a.remove();
-      log('Screenshot taken & downloaded');
-    }catch(e){ log('Screenshot failed: '+ e.message, 'err'); alert('Screenshot failed: ' + e.message); }
+  } else {
+    try { recognition.stop(); } catch(e){}
   }
+});
 
-  // News - open Google News search
-  function openNews(){
-    speak('Opening top news');
-    window.open('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en', '_blank');
+async function requestMicrophonePermission(){
+  // simple try-getMedia to force prompt
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio:true });
+    return true;
+  } catch(e){
+    throw e;
   }
+}
 
-  // Self destruct effect using better canvas animation
-  function runSelfDestruct(){
-    const c = boomCanvas;
-    c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block';
-    const ctx = c.getContext('2d');
-    const sparks = [];
-    for(let i=0;i<220;i++){
-      sparks.push({
-        x: window.innerWidth/2 + (Math.random()-0.5)*200,
-        y: window.innerHeight/2 + (Math.random()-0.5)*200,
-        vx: (Math.random()-0.5)*14,
-        vy: (Math.random()-0.9)*14 - 4,
-        r: Math.random()*6+2,
-        life: Math.random()*100+40,
-        color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,`
-      });
+/* -------------------------
+   Camera overlay functions
+   ------------------------- */
+async function openCameraOverlay(){
+  cameraOverlay.classList.add('flex');
+  cameraOverlay.setAttribute('aria-hidden','false');
+  try {
+    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: usingBackCamera ? 'environment' : 'user' }, audio:false });
+    camVid.srcObject = camStream;
+    await camVid.play();
+  } catch(e){
+    console.warn('camera error', e);
+    showError('Camera permission denied or device error');
+    cameraOverlay.classList.remove('flex');
+  }
+}
+function closeCameraOverlay(){
+  cameraOverlay.classList.remove('flex');
+  cameraOverlay.setAttribute('aria-hidden','true');
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; camVid.srcObject = null; }
+}
+closeCam.addEventListener('click', closeCameraOverlay);
+
+snapCam.addEventListener('click', ()=>{
+  if(!camStream) return;
+  const v = camVid;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth || 800;
+  c.height = v.videoHeight || 600;
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  const url = c.toDataURL('image/png');
+  const a = document.createElement('a'); a.href = url; a.download = 'jarvis-snap.png'; a.click();
+  speak('Snapshot saved');
+});
+
+switchCam.addEventListener('click', async ()=>{
+  usingBackCamera = !usingBackCamera;
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  await openCameraOverlay();
+});
+
+/* -------------------------
+   Flashlight (screen white) fallback
+   ------------------------- */
+let torchOn = false;
+function flashlight(on){
+  // mobile browsers don't allow real flashlight via JS; simulate with white overlay
+  if(on){
+    if(!document.getElementById('flashSim')){
+      const d = document.createElement('div'); d.id = 'flashSim';
+      d.style.position='fixed'; d.style.inset='0'; d.style.zIndex='70'; d.style.background='#fff'; d.style.opacity='1';
+      document.body.appendChild(d);
+    } else {
+      document.getElementById('flashSim').style.display='block';
     }
-    let t=0;
-    speak('Self destruct in 3... 2... 1...');
-    // screen shake
-    const orig = document.body.style.transform || '';
-    let id = setInterval(()=>{
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      ctx.fillRect(0,0,c.width,c.height);
-      sparks.forEach(p=>{
-        p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--;
-        ctx.beginPath();
-        ctx.fillStyle = p.color + (p.life/140) + ')';
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      });
-      t++;
-      if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
-      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; log('Self-destruct animation done'); }
-    }, 16);
+    torchOn = true;
+    speak('Flashlight on');
+  } else {
+    const el = document.getElementById('flashSim'); if(el) el.style.display='none';
+    torchOn = false; speak('Flashlight off');
   }
+}
 
-  // quick games
-  function playRPS(){
-    const choices = ['rock','paper','scissors'];
-    const user = prompt('Choose rock, paper or scissors:');
-    if(!user) return;
-    const u = user.toLowerCase();
-    if(!choices.includes(u)){ alert('Invalid choice'); return; }
-    const bot = choices[Math.floor(Math.random()*3)];
-    let res='Draw';
-    if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
-    else if(u===bot) res='Draw';
-    else res='You lose!';
-    speak(`You chose ${u}. I chose ${bot}. ${res}`);
-    alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
-  }
-  function playGuess(){
-    const target = Math.floor(Math.random()*50)+1;
-    let tries=0; let ok=false;
-    while(tries<7){
-      const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries));
-      if(g===null) return;
-      const n = parseInt(g,10);
-      if(isNaN(n)){ alert('Enter a number'); continue; }
-      tries++;
-      if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; }
-      else if(n<target){ speak('Higher'); alert('Higher'); }
-      else { speak('Lower'); alert('Lower'); }
-    }
-    if(!ok) { speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
-  }
-
-  // small helper to dynamically load script
-  function loadScript(src){
-    return new Promise((res, rej)=>{
-      const s = document.createElement('script');
-      s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
+/* -------------------------
+   Self destruct canvas animation
+   ------------------------- */
+function runSelfDestruct(){
+  const c = boomCanvas;
+  const ctx = c.getContext('2d');
+  c.width = innerWidth; c.height = innerHeight;
+  c.style.display = 'block';
+  const particles = [];
+  for(let i=0;i<260;i++){
+    particles.push({
+      x: innerWidth/2 + (Math.random()-0.5)*160,
+      y: innerHeight/2 + (Math.random()-0.5)*160,
+      vx: (Math.random()-0.5)*12,
+      vy: (Math.random()-1)*12 - 2,
+      r: Math.random()*4+1,
+      life: Math.random()*120 + 40,
+      color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,`
     });
   }
+  let t=0;
+  speak('Self destruct in 3, 2, 1');
+  const id = setInterval(()=>{
+    ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(0,0,c.width,c.height);
+    particles.forEach(p=>{
+      p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--;
+      ctx.beginPath(); ctx.fillStyle = p.color + (p.life/160) + ')'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    });
+    t++;
+    if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
+    if(t>180){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform=''; }
+  }, 16);
+}
 
-  // EXTRA: handle extra commands BEFORE main handler (typed & observed voice lines)
-  function handleExtraCommand(raw){
-    if(!raw) return false;
-    const lower = raw.toLowerCase().trim();
+/* -------------------------
+   Power simulations
+   ------------------------- */
+function powerOffSim(){
+  speak('Shutting down');
+  document.body.style.transition = 'filter 0.8s';
+  setTimeout(()=> document.body.style.filter = 'brightness(0.02)', 600);
+}
+function restartSim(){
+  speak('Restarting');
+  document.body.style.transition = 'filter 0.8s';
+  setTimeout(()=> document.body.style.filter = 'brightness(0.02)', 600);
+  setTimeout(()=> { document.body.style.filter=''; speak('Restart complete'); }, 2800);
+}
 
-    // direct map
-    if(/^(power\s*off( phone)?|shutdown( phone)?)$/.test(lower)){ powerOffAnimation(); return true; }
-    if(/^(restart( phone)?|reboot( phone)?)$/.test(lower)){ restartAnimation(); return true; }
-    if(/^(flashlight|torch) on$/.test(lower)){ flashlight(true); return true; }
-    if(/^(flashlight|torch) off$/.test(lower)){ flashlight(false); return true; }
-    if(/^open camera$/.test(lower)){ openCamera(); return true; }
-    if(/^close camera$/.test(lower)){ closeCamera(); return true; }
-    if(/^open whatsapp$/.test(lower)){ openWhatsApp(); return true; }
-    if(/^open gallery$/.test(lower)){ openGallery(); return true; }
-    if(/^battery status$/.test(lower)){ batteryStatus(); return true; }
-    if(/^device info$/.test(lower)){ deviceInfo(); return true; }
-    if(/^keep screen on$/.test(lower)){ keepScreenOn(); return true; }
-    if(/^allow sleep$/.test(lower)){ allowSleep(); return true; }
-    if(/^vibrate$/.test(lower)){ vibrate(); return true; }
-    if(/^lock screen$/.test(lower)){ lockScreen(); return true; }
-    if(/^unlock screen$/.test(lower)){ unlockScreen(); return true; }
-    if(/^news$/.test(lower)){ openNews(); return true; }
-    if(/^weather$/.test(lower)){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
-    if(/^play spotify$/.test(lower)){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
-    if(/^screenshot$/.test(lower)){ takeScreenshot(); return true; }
-    if(/^motivate$/.test(lower)){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
-    if(/^self destruct$/.test(lower)){ runSelfDestruct(); return true; }
-    if(/^play music$/.test(lower)){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
-    if(/^remember /.test(lower)){ // typed memory quick add
-      const mem = raw.replace(/^remember\s+/i,'').trim();
-      if(mem){ const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]'); mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory saved'); }
-      return true;
-    }
-    // quick open physics
-    if(lower.startsWith('open ') && (lower.includes('pw') || lower.includes('physics'))){
-      window.open('https://www.pw.live/', '_blank'); return true;
-    }
-    // news/weather/spotify handled above
-    return false;
+/* -------------------------
+   Lock/unlock UI
+   ------------------------- */
+function lockScreen(){
+  lockOverlay.classList.add('flex');
+  lockOverlay.setAttribute('aria-hidden','false');
+  speak('Screen locked');
+}
+function unlockScreen(){
+  lockOverlay.classList.remove('flex');
+  lockOverlay.setAttribute('aria-hidden','true');
+  speak('Unlocked');
+}
+unlockBtn.addEventListener('click', unlockScreen);
+
+/* -------------------------
+   Memories storage & UI
+   ------------------------- */
+function loadMemories(){
+  try {
+    return JSON.parse(localStorage.getItem('jarvis_mems') || '[]');
+  } catch(e){ return []; }
+}
+function saveMemories(a){
+  localStorage.setItem('jarvis_mems', JSON.stringify(a));
+}
+function renderMemories(){
+  const mems = loadMemories();
+  memList.innerHTML = '';
+  if(mems.length === 0){
+    memList.innerHTML = '<div style="color:var(--muted);">No memories</div>';
+    return;
   }
-
-  // Observe transcript UI nodes to catch voice "User: ..." entries (so addons work for voice)
-  const seen = new Set();
-  const observer = new MutationObserver((muts)=>{
-    muts.forEach(m=>{
-      m.addedNodes && Array.from(m.addedNodes).forEach(node=>{
-        if(node && node.textContent && node.textContent.startsWith('User: ')){
-          const cmd = node.textContent.slice(6).trim();
-          if(!seen.has(cmd)){
-            seen.add(cmd);
-            // first try extras
-            handleExtraCommand(cmd);
-          }
-        }
-      });
+  mems.slice().reverse().forEach((m, idx)=>{
+    const wrap = document.createElement('div');
+    wrap.style.padding = '8px'; wrap.style.borderBottom = '1px dashed rgba(255,255,255,0.02)';
+    wrap.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="margin-top:6px"><button class="btn" data-idx="${mems.length-1-idx}">Delete</button></div>`;
+    memList.appendChild(wrap);
+  });
+  memList.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const i = parseInt(b.getAttribute('data-idx'),10);
+      const arr = loadMemories(); arr.splice(i,1); saveMemories(arr); renderMemories(); speak('Memory deleted');
     });
   });
-  if(transcriptEl){
-    observer.observe(transcriptEl, { childList:true });
-  }
+}
+function addMemory(text){
+  const arr = loadMemories();
+  arr.push({ text: text, time: Date.now() });
+  saveMemories(arr);
+  renderMemories();
+}
+memAddBtn.addEventListener('click', ()=>{
+  const t = memText.value.trim(); if(!t) return; addMemory(t); memText.value=''; speak('Memory added');
+});
 
-  // voice meter using WebAudio analyser (for mood detection)
-  async function startVoiceMeter(){
-    try{
-      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-      if(!audioContext){
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video:false });
-      meterSource = audioContext.createMediaStreamSource(stream);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      meterSource.connect(analyser);
-      const bufferLength = analyser.frequencyBinCount;
-      meterDataArray = new Uint8Array(bufferLength);
-      const loop = ()=>{
-        analyser.getByteFrequencyData(meterDataArray);
-        let sum=0;
-        for(let i=0;i<meterDataArray.length;i++){ sum += meterDataArray[i]; }
-        const avg = sum / meterDataArray.length;
-        const pct = Math.min(100, Math.round((avg/255)*100));
-        voiceMeter.style.width = pct + '%';
-        // mood heuristic
-        if(pct > 45){
-          // energetic
-          // don't be too chatty
-        } else if(pct < 10){
-          // quiet - maybe sleepy
-        }
-        requestVoiceMeter = requestAnimationFrame(loop);
-      };
-      requestVoiceMeter = requestAnimationFrame(loop);
-      // stop stream on recognition.onend by stopVoiceMeter
-    }catch(e){
-      // ignore meter errors
+/* open memories overlay */
+function openMemories(){ memOverlay.classList.add('flex'); memOverlay.setAttribute('aria-hidden','false'); renderMemories(); }
+closeMem.addEventListener('click', ()=> { memOverlay.classList.remove('flex'); memOverlay.setAttribute('aria-hidden','true'); });
+
+/* -------------------------
+   Screenshot (html2canvas dynamic)
+   ------------------------- */
+async function takeScreenshot(){
+  // prefer html2canvas if available, otherwise try to use toDataURL of body (not reliable)
+  if(typeof html2canvas === 'undefined'){
+    try {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    } catch(e){
+      showError('Failed to load screenshot helper');
+      return;
     }
   }
-  let requestVoiceMeter = null;
-  function stopVoiceMeter(){
-    if(requestVoiceMeter){ cancelAnimationFrame(requestVoiceMeter); requestVoiceMeter = null; }
-    if(meterSource && meterSource.mediaStream) {
-      meterSource.mediaStream.getTracks().forEach(t=>t.stop());
-      meterSource.disconnect && meterSource.disconnect();
-    }
-    if(analyser){ analyser.disconnect && analyser.disconnect(); analyser = null; }
-    audioContext = audioContext; // keep context
-    voiceMeter.style.width = '0%';
+  speak('Taking screenshot');
+  try {
+    const node = document.documentElement;
+    const canvas = await html2canvas(node, {useCORS:true, logging:false, scale:1});
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a'); a.href = url; a.download = 'jarvis-screenshot.png'; a.click();
+    speak('Saved screenshot');
+  } catch(e){
+    showError('Screenshot failed');
   }
+}
 
-  // Expose some functions for debugging
-  window.Jarvis = {
-    speak, takeScreenshot, openCamera, closeCamera, flashlight, restartAnimation, powerOffAnimation, openNews, keepScreenOn, allowSleep, showMemories, renderMemories
-  };
+/* small dynamic script loader */
+function loadScript(src){
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script'); s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
 
-})();
+/* -------------------------
+   WhatsApp / gallery helpers
+   ------------------------- */
+function openWhatsApp(){
+  try { window.location.href = "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;end"; setTimeout(()=> window.open('https://web.whatsapp.com', '_blank'), 600); } catch(e){ window.open('https://web.whatsapp.com', '_blank'); }
+}
+function openGallery(){ window.open('https://photos.google.com', '_blank'); }
+
+/* -------------------------
+   Mini games
+   ------------------------- */
+function playRPS(){
+  const choices = ['rock','paper','scissors'];
+  const user = prompt('Choose rock, paper or scissors:');
+  if(!user) return;
+  const u = user.toLowerCase();
+  if(!choices.includes(u)){ alert('Invalid'); return; }
+  const bot = choices[Math.floor(Math.random()*3)];
+  let res='Draw';
+  if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
+  else if(u===bot) res='Draw';
+  else res='You lose!';
+  speak(`You chose ${u}. I chose ${bot}. ${res}`);
+  alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
+}
+function playGuess(){
+  const target = Math.floor(Math.random()*50)+1;
+  let tries=0; let ok=false;
+  while(tries<7){
+    const g = prompt('Guess (1-50). Attempts left: ' + (7-tries));
+    if(g===null) return;
+    const n = parseInt(g,10);
+    if(isNaN(n)){ alert('Enter a number'); continue; }
+    tries++;
+    if(n===target){ speak('Correct'); alert('Correct!'); ok=true; break; }
+    else if(n<target){ speak('Higher'); alert('Higher'); }
+    else { speak('Lower'); alert('Lower'); }
+  }
+  if(!ok){ speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
+}
+
+/* -------------------------
+   Utility: escape HTML
+   ------------------------- */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+/* -------------------------
+   Init
+   ------------------------- */
+function init(){
+  // set initial labels
+  hudMsg.textContent = 'Say "Hey Jarvis" or press Start Listening';
+  // set custom wake word from local storage if provided
+  try {
+    const w = localStorage.getItem('jarvis_wake'); if(w) wakeWord = w;
+  } catch(e){}
+  // set event listeners for overlays toggles (shortcuts)
+  // long-press center ring to open memories? (touch-friendly)
+  holoRing.addEventListener('click', ()=> { openMemories(); });
+  // keyboard accessibility (Enter to start)
+  document.addEventListener('keydown', (e)=> { if(e.key === 'Enter') btnStart.click(); });
+
+  // prepare recognition object
+  setupRecognition();
+
+  // click on central button to show start
+  btnStart.title = 'Start Listening';
+  // quick long-press to toggle wake requirement
+  let pressTimer = null;
+  btnStart.addEventListener('touchstart', (e)=> {
+    pressTimer = setTimeout(()=> {
+      wakeRequired = !wakeRequired;
+      speak(wakeRequired ? 'Wake word required' : 'Wake word not required');
+      flashHUDMessage('Wake required: ' + (wakeRequired?'Yes':'No'), 2000);
+    }, 800);
+  });
+  btnStart.addEventListener('touchend', ()=> { if(pressTimer) clearTimeout(pressTimer); });
+
+  // wire additional small controls for demo
+  // camera overlay controls wired earlier
+
+  // initial memory render
+  renderMemories();
+
+  // log ready
+  console.log('Jarvis HUD ready');
+  speak('Jarvis ready');
+}
+window.addEventListener('load', ()=> {
+  init();
+  // request audio context resume on user gesture for some mobile browsers
+  document.body.addEventListener('touchstart', ()=> {
+    if(audioContext && audioContext.state === 'suspended') audioContext.resume();
+  }, { once:true });
+});
 </script>
 </body>
 </html>
