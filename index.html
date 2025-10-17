@@ -3,25 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>J.A.R.V.I.S — HUD Voice Assistant (Mobile)</title>
-<meta name="theme-color" content="#021018">
-<!-- Fallback font -->
+<title>J.A.R.V.I.S — HUD Voice Assistant (PWA)</title>
+<meta name="theme-color" content="#00121a">
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#000606;
-    --grid:#07121a;
     --neon:#00f0ff;
     --accent:#00ffd6;
-    --glass: rgba(255,255,255,0.02);
-    --panel: rgba(2,10,16,0.7);
-    --muted: #7fb3c9;
+    --muted:#7fb3c9;
   }
   html,body{height:100%;margin:0;padding:0;background:
-    radial-gradient(ellipse at center, rgba(0,20,30,0.25) 0%, rgba(0,6,12,0.85) 60%),
+    radial-gradient(ellipse at center, rgba(0,20,30,0.24) 0%, rgba(0,6,12,0.86) 60%),
     linear-gradient(180deg,#00121a 0%, #00060a 100%);
     color:var(--neon); font-family: 'Inter', system-ui, -apple-system, 'Orbitron', sans-serif; -webkit-font-smoothing:antialiased;}
-  /* GRID BACKDROP */
+  /* full-screen HUD container */
   .hud-root{position:relative; min-height:100vh; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;}
   .grid-bg{
     position:fixed; inset:0; z-index:0;
@@ -30,167 +27,101 @@
       linear-gradient(to bottom, rgba(0,255,255,0.02) 1px, transparent 1px);
     background-size: 28px 28px, 28px 28px;
     mix-blend-mode:overlay; opacity:0.5;
-    filter: contrast(1.1) saturate(1.2);
   }
 
-  /* TOP INFO WINDOWS */
-  .top-widgets{z-index:10; position:relative; width:100%; display:flex; justify-content:space-between; padding:18px 20px; box-sizing:border-box; align-items:flex-start; pointer-events:none;}
-  .widget{
-    pointer-events:auto;
-    min-width:120px; max-width:220px; padding:12px 14px;
-    border-radius:12px; border:1px solid rgba(0,255,255,0.12);
-    background:linear-gradient(180deg, rgba(0,255,255,0.02), rgba(255,255,255,0.01));
-    box-shadow:0 8px 26px rgba(0,255,255,0.03), inset 0 0 18px rgba(0,255,255,0.02);
-    text-align:center; color:var(--neon); font-size:12px;
-    backdrop-filter: blur(6px);
-  }
-  .widget .title{font-size:12px; color:var(--muted); letter-spacing:0.8px}
-  .widget .val{font-family: 'Orbitron', sans-serif; font-weight:700; font-size:18px; margin-top:6px; color:var(--accent)}
+  /* top small widgets */
+  .top-widgets{z-index:6; position:relative; width:100%; display:flex; justify-content:space-between; padding:18px 20px; box-sizing:border-box; align-items:flex-start; pointer-events:none;}
+  .widget{ pointer-events:none; min-width:120px; padding:8px 12px; border-radius:10px; text-align:center; color:var(--neon); font-size:12px; }
+  .title{ color:var(--muted); font-size:11px; letter-spacing:0.6px; }
+  .val{ font-family: 'Orbitron'; font-weight:700; font-size:16px; margin-top:6px; color:var(--accent) }
 
   /* center hologram area */
-  .center-area{z-index:6; width:100%; display:flex; flex-direction:column; align-items:center; padding:8vh 18px 28vh; box-sizing:border-box; pointer-events:none;}
-  .holo-wrap{position:relative; width:86vw; max-width:420px; aspect-ratio: 0.75/1; pointer-events:auto;}
-  .holo-card{
-    position:relative; width:100%; padding-top:120%; /* square placeholder scaled */
-    border-radius:20px; overflow:visible;
-    display:flex; align-items:center; justify-content:center;
-    transform: translateY(6%);
-  }
-  /* circular scanner */
-  .scanner {
-    position:absolute; left:50%; top:50%;
-    transform:translate(-50%,-50%);
-    width:58%; height:58%; border-radius:50%;
-    box-shadow: 0 0 40px rgba(0,250,255,0.06), 0 0 8px rgba(0,255,255,0.06) inset;
-    border:2px solid rgba(0,255,255,0.15);
-    display:flex; align-items:center; justify-content:center; pointer-events:none;
-  }
-  .scanner .rings{
-    position:absolute; inset:0; display:block;
-  }
-  .ring {
-    position:absolute; border-radius:50%; box-shadow: 0 0 10px rgba(0,255,255,0.06) inset;
-    border:2px dashed rgba(0,255,255,0.16);
-  }
+  .center-area{z-index:4; width:100%; display:flex; flex-direction:column; align-items:center; padding:6vh 18px 28vh; box-sizing:border-box; pointer-events:none;}
+  .holo-wrap{position:relative; width:86vw; max-width:460px; aspect-ratio: 0.78/1; pointer-events:auto;}
+  .holo-card{position:relative; width:100%; height:100%; border-radius:20px; overflow:visible; display:flex; align-items:center; justify-content:center; transform: translateY(6%);}
+
+  .scanner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:58%; height:58%; border-radius:50%; border:2px solid rgba(0,255,255,0.12); display:flex; align-items:center; justify-content:center; pointer-events:none; box-shadow:0 10px 50px rgba(0,255,255,0.03) inset; }
+  .rings{ position:absolute; inset:0; }
+  .ring{ position:absolute; border-radius:50%; border:1px dashed rgba(0,255,255,0.14); }
   .ring.r1{ width:100%; height:100%; }
-  .ring.r2{ width:86%; height:86%; left:7%; top:7%; border-style:solid; opacity:0.7; transform: rotate(15deg);}
-  .ring.r3{ width:68%; height:68%; left:16%; top:16%; border-style:solid; opacity:0.4;}
-  /* animated sweep */
-  .sweep {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(0deg);
-    width:120%; height:120%; pointer-events:none;
-    background: conic-gradient(from 60deg, rgba(0,255,255,0.12), rgba(0,255,255,0.02) 10%, transparent 40%);
-    border-radius:50%; mix-blend-mode:screen; filter: blur(6px); opacity:0.9;
-    animation: sweep 6s linear infinite;
+  .ring.r2{ width:86%; height:86%; left:7%; top:7%; transform:rotate(12deg); opacity:0.9; border-style:solid; }
+  .ring.r3{ width:68%; height:68%; left:16%; top:16%; opacity:0.6; }
+
+  .sweep { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(0deg); width:120%; height:120%; background: conic-gradient(from 60deg, rgba(0,255,255,0.12), rgba(0,255,255,0.02) 10%, transparent 40%); border-radius:50%; filter: blur(6px); animation: sweep 6s linear infinite; mix-blend-mode:screen; opacity:0.95; }
+  @keyframes sweep { to{ transform:translate(-50%,-50%) rotate(360deg); } }
+
+  .holo-center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:40%; height:40%; border-radius:50%; background: radial-gradient(circle at 30% 30%, rgba(0,255,255,0.22), rgba(0,120,140,0.06)); display:flex; align-items:center; justify-content:center; font-family: 'Orbitron'; font-size:14px; letter-spacing:2px; color:#cfffff; border:1px solid rgba(0,255,255,0.12); text-shadow: 0 2px 8px rgba(0,255,255,0.06); pointer-events:none; }
+
+  .holo-figure { position:absolute; left:50%; top:50%; transform:translate(-50%,-10%); width:62%; height:120%; background-size:contain; background-position:center bottom; background-repeat:no-repeat; opacity:0.6; mix-blend-mode:screen; -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.85) 30%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0) 100%); pointer-events:none; }
+
+  /* bottom HUD controls (hidden buttons replaced by full-screen activation overlay) */
+  .bottom-panel{z-index:6; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); width:94%; max-width:560px; display:flex; flex-direction:column; gap:12px; align-items:center; pointer-events:none;}
+  .statusText{ font-size:14px; color:var(--neon); text-shadow:0 3px 18px rgba(0,255,255,0.03); letter-spacing:0.6px; pointer-events:none; }
+  .voice-meter { width:72vw; max-width:420px; height:10px; border-radius:999px; background:rgba(255,255,255,0.02); border:1px solid rgba(0,255,255,0.03); overflow:hidden; pointer-events:none; }
+  .voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,210,200,0.6)); transition:width 80ms linear; }
+
+  /* clickable full-screen activation overlay (looks like part of HUD; not a normal button) */
+  #activationOverlay{
+    position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; background:transparent; cursor:pointer;
+    /* invisible except a subtle ring to show user where to tap */
   }
-  @keyframes sweep {
-    to{ transform:translate(-50%,-50%) rotate(360deg); }
-  }
-  .holo-center{
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:40%; height:40%; border-radius:50%;
-    background: radial-gradient(circle at 30% 30%, rgba(0,255,255,0.22), rgba(0,120,140,0.07));
-    display:flex; align-items:center; justify-content:center; font-family: 'Orbitron'; font-size:14px; letter-spacing:2px; color:#cfffff;
-    border:1px solid rgba(0,255,255,0.2); text-shadow: 0 2px 8px rgba(0,255,255,0.12);
+  #activationOverlay .tap-hint{
+    width:160px; height:160px; border-radius:50%; border:2px dashed rgba(0,255,255,0.12);
+    display:flex; align-items:center; justify-content:center; color:var(--neon); font-family:Orbitron; letter-spacing:2px; font-size:12px; text-align:center; backdrop-filter: blur(2px);
+    box-shadow:0 8px 40px rgba(0,255,255,0.02), inset 0 0 30px rgba(0,255,255,0.02);
   }
 
-  /* figure silhouette (background image) */
-  .holo-figure {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-10%);
-    width:62%; height:110%; background-size:contain; background-position:center bottom; background-repeat:no-repeat;
-    opacity:0.55; filter: contrast(1.25) saturate(1.2) hue-rotate(-10deg);
-    mix-blend-mode:screen;
-    -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.85) 30%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0) 100%);
-  }
-
-  /* bottom info and button */
-  .bottom-panel{z-index:12; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); width:94%; max-width:560px; display:flex; flex-direction:column; gap:12px; align-items:center; pointer-events:auto;}
-  .err-msg{ font-family: 'Inter'; color:#66f0ff; font-size:14px; opacity:0.9; text-shadow:0 3px 18px rgba(0,255,255,0.06); letter-spacing:0.6px; }
-  .start-btn{
-    margin-top:6px; background:linear-gradient(180deg, rgba(0,255,255,0.06), rgba(0,255,255,0.02));
-    border:2px solid rgba(0,255,255,0.22); padding:14px 28px; border-radius:12px; color: #cfffff;
-    font-family:'Orbitron'; font-weight:700; letter-spacing:1px; box-shadow:0 8px 36px rgba(0,255,255,0.06), 0 0 34px rgba(0,255,255,0.06) inset;
-    backdrop-filter: blur(6px);
-    cursor:pointer; user-select:none;
-  }
-  .start-btn.listening{ border-color: rgba(0,200,200,0.9); box-shadow:0 12px 46px rgba(0,200,200,0.12); transform: translateY(-2px); }
-
-  /* control tray (hidden toggles) */
-  .tray{position:fixed; right:12px; top:calc(50% - 120px); z-index:13; display:flex; flex-direction:column; gap:8px;}
-  .mini{background:rgba(0,255,255,0.02); padding:8px 10px; border-radius:10px; border:1px solid rgba(0,255,255,0.05); color:var(--neon); font-size:12px; cursor:pointer;}
-
-  /* overlays (camera / flashlight / lock / power) */
-  .overlay{ position:fixed; inset:0; display:none; z-index:50; align-items:center; justify-content:center; }
+  /* overlay panels (camera, flash, lock, power, memories) */
+  .overlay{ position:fixed; inset:0; display:none; z-index:60; align-items:center; justify-content:center; }
   .overlay.show{ display:flex; }
-  #cameraOverlay{ background: rgba(0,0,0,0.95); flex-direction:column; gap:12px; padding:18px; box-sizing:border-box; }
+  #cameraOverlay{ background: rgba(0,0,0,0.95); flex-direction:column; gap:12px; padding:18px; box-sizing:border-box; pointer-events:auto; }
   #cameraView{ width:94%; max-width:920px; height:min(62vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.04) }
   #cameraView video{ width:100%; height:100%; object-fit:cover; display:block; }
-  #powerOverlay, #lockOverlay{ background: rgba(0,0,0,0.98); color:#fff; flex-direction:column; gap:12px; text-align:center; padding:18px; box-sizing:border-box; }
-  #flashlightOverlay{ background: #ffffff; display:none; align-items:center; justify-content:center; }
 
-  /* small right panels shown as modal */
-  .panel-card{ position:fixed; z-index:40; right:10px; bottom:90px; width:300px; max-width:92vw; background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.45)); padding:12px; border-radius:12px; border:1px solid rgba(0,255,255,0.06); }
-  .mem-list{ max-height:220px; overflow:auto; padding:6px; border-radius:8px; }
+  #flashlightOverlay{ background:#fff; display:none; align-items:center; justify-content:center; pointer-events:none; }
 
-  /* voice meter */
-  .voice-meter { width:72vw; max-width:420px; height:12px; border-radius:999px; background:rgba(255,255,255,0.02); border:1px solid rgba(0,255,255,0.03); overflow:hidden; }
-  .voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,210,200,0.6)); transition:width 100ms linear; }
+  /* small memory panel */
+  .panel-card{ position:fixed; z-index:58; right:10px; bottom:90px; width:300px; max-width:92vw; background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.45)); padding:12px; border-radius:12px; border:1px solid rgba(0,255,255,0.06); pointer-events:auto; color:var(--neon); }
 
-  /* responsive tweaks */
-  @media(min-width:900px){
-    .center-area{ padding-top:8vh; }
-    .holo-wrap{ width:600px; }
-    .holo-figure{ width:48%; height:120%; opacity:0.6; }
-  }
+  /* mobile tweaks */
   @media(max-width:420px){
-    .widget{ font-size:11px; padding:10px; }
     .holo-wrap{ width:92vw; }
     .holo-figure{ width:70%; top:48%;}
-    .bottom-panel{ bottom:18px; }
+    .tap-hint{ width:120px; height:120px; font-size:11px; }
+    .panel-card{ width:92vw; left:4%; right:4%; bottom:88px; }
   }
 
-  /* tiny utility styles */
+  /* tiny utility */
   .muted{ color:var(--muted); font-size:12px }
-  .kbd{ background:#04121a; padding:6px 8px; border-radius:8px; font-weight:700; color:var(--neon); }
-
-  /* link styles */
-  a.linky{ color:var(--accent); text-decoration:none; }
+  .hidden{ display:none !important; }
 </style>
 </head>
 <body>
-  <div class="hud-root">
-
+  <div class="hud-root" id="hudRoot">
     <div class="grid-bg" aria-hidden="true"></div>
 
-    <!-- Top Widgets -->
-    <div class="top-widgets" id="topWidgets">
-      <div class="widget" aria-hidden="false" id="downlinkWidget">
+    <div class="top-widgets">
+      <div class="widget">
         <div class="title">Downlink</div>
         <div class="val" id="downlinkVal">-- Mbps</div>
       </div>
-
-      <div class="widget" id="systemWidget" style="margin-left:auto">
+      <div class="widget" style="margin-left:auto">
         <div class="title">System Time</div>
         <div class="val" id="sysTime">--:--:--</div>
       </div>
     </div>
 
-    <!-- Center hologram -->
     <div class="center-area">
       <div class="holo-wrap" role="main" aria-label="JARVIS HUD">
         <div class="holo-card">
-
-          <!-- figure image (neon-edged) -->
           <div class="holo-figure" id="holoFigure" style="background-image: url('data:image/svg+xml;utf8,\
             <svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 800%22>\
             <rect width=%22400%22 height=%22800%22 fill=%22black%22/>\
-            <!-- simple silhouette line art placeholder: user can replace with custom image -->\
             <g fill=%22none%22 stroke=%22%2300ffff%22 stroke-width=%222%22 opacity=%22.9%22>\
               <path d=%22M200 80 C180 110 170 150 160 200 C150 250 150 350 170 420 C190 490 220 560 240 640%22/>\
               <path d=%22M220 80 C240 110 260 150 270 200 C280 250 280 340 260 420 C240 500 210 580 190 640%22/>\
             </g></svg>')"></div>
 
-          <!-- scanner rings and sweep -->
           <div class="scanner" aria-hidden="true">
             <div class="rings">
               <div class="ring r1"></div>
@@ -203,155 +134,105 @@
 
         </div>
 
-        <!-- error / hint text -->
-        <div style="margin-top:28px; text-align:center; pointer-events:none">
-          <div class="err-msg" id="statusText">Awaiting command — press Start Listening.</div>
+        <div style="margin-top:28px; text-align:center;">
+          <div class="statusText" id="statusText">Jarvis offline — tap anywhere to activate microphone</div>
         </div>
-
       </div>
     </div>
 
-    <!-- Bottom controls -->
     <div class="bottom-panel">
       <div class="voice-meter" id="voiceMeter"><div></div></div>
-      <div style="display:flex; gap:10px; align-items:center; justify-content:center; width:100%; max-width:560px;">
-        <button id="btnStart" class="start-btn">Start Listening</button>
-        <button id="btnStop" class="mini" title="Stop recognition">Stop</button>
-        <button id="btnWakeToggle" class="mini" title="Toggle wakeword">Wake: <span id="wakeState" style="color:var(--accent)">Off</span></button>
-      </div>
-      <div style="display:flex; gap:8px; justify-content:center; align-items:center; color:var(--muted); font-size:12px; margin-top:6px;">
-        <div>Lang: <span id="langLabel" class="muted">en-US</span></div>
+      <div style="display:flex; gap:8px; align-items:center; justify-content:center; color:var(--muted); font-size:12px; margin-top:6px;">
+        <div class="muted">Lang: <span id="langLabel">en-US</span></div>
         <div style="width:8px"></div>
-        <div class="muted">Voice: <span id="voiceName" class="muted">Default</span></div>
+        <div class="muted">Voice: <span id="voiceName">Default</span></div>
       </div>
     </div>
 
-    <!-- small vertical tray -->
-    <div class="tray">
-      <div class="mini" id="openCameraBtn">Camera</div>
-      <div class="mini" id="flashBtn">Flash</div>
-      <div class="mini" id="memPanelBtn">Memories</div>
-      <div class="mini" id="selfBtn">Self-Destruct</div>
+    <!-- clickable activation overlay: tap anywhere once on screen to request mic permission and start listening -->
+    <div id="activationOverlay" title="Tap to activate Jarvis (microphone)">
+      <div class="tap-hint" id="tapHint">Tap to activate</div>
     </div>
 
     <!-- overlays -->
-    <div id="cameraOverlay" class="overlay">
-      <div id="cameraTop" style="width:94%; max-width:920px; display:flex; justify-content:space-between; gap:8px;">
+    <div id="cameraOverlay" class="overlay" aria-hidden="true">
+      <div style="width:94%; max-width:920px; display:flex; justify-content:space-between; gap:8px; pointer-events:auto;">
         <div style="display:flex; gap:8px;">
-          <button id="camClose" class="mini">Close</button>
-          <button id="camSwitch" class="mini">Switch</button>
-          <button id="camSnap" class="mini">Snap</button>
+          <div class="muted" id="camStatus">Camera</div>
         </div>
         <div style="display:flex; gap:8px;">
-          <div class="mini" id="camStatus">Camera</div>
+          <div class="muted" id="camMode">Back</div>
         </div>
       </div>
       <div id="cameraView"><video id="camVideo" autoplay playsinline muted></video></div>
     </div>
 
-    <div id="powerOverlay" class="overlay">
-      <div id="powerBox" style="text-align:center; color:var(--neon)"><div style="font-size:22px; letter-spacing:6px">S H U T T I N G</div><div style="margin-top:8px" id="powerText">Powering off...</div></div>
+    <div id="flashlightOverlay" class="overlay" aria-hidden="true">
+      <div style="width:100%; height:100%; background:#fff;"></div>
     </div>
 
-    <div id="lockOverlay" class="overlay">
-      <div style="text-align:center; color:var(--neon)"><div style="font-size:34px">🔒</div><div style="margin-top:12px">Screen Locked</div><div style="margin-top:10px"><button id="unlockBtn" class="mini">Unlock</button></div></div>
-    </div>
-
-    <div id="flashlightOverlay" class="overlay" style="align-items:flex-start; justify-content:flex-start;">
-      <div id="flashFill" style="width:100%; height:100%; background:#fff;"></div>
-    </div>
-
-    <!-- memories panel -->
-    <div id="memPanel" class="panel-card" style="display:none;">
+    <div id="memPanel" class="panel-card" aria-hidden="true" style="display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div style="font-weight:700; color:var(--neon)">Memories</div>
-        <div><button id="memAddBtn" class="mini">Add</button></div>
       </div>
       <div style="margin-top:8px">
-        <input id="memInput" placeholder="Remember something..." style="width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:var(--neon)">
+        <input id="memInput" placeholder="Speak 'remember ...' or type here then press Enter" style="width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:var(--neon)">
       </div>
       <div class="mem-list" id="memList" style="margin-top:8px; color:var(--neon)"></div>
     </div>
 
-    <!-- small log (vis) -->
-    <div id="miniLog" style="position:fixed; left:12px; bottom:18px; z-index:20; color:var(--muted); font-size:12px;">Ready.</div>
+    <div id="powerOverlay" class="overlay" aria-hidden="true">
+      <div style="text-align:center; color:var(--neon)"><div style="font-size:22px; letter-spacing:6px">S H U T T I N G</div><div style="margin-top:8px" id="powerText">Powering off...</div></div>
+    </div>
 
     <!-- canvas for self-destruct -->
-    <canvas id="boomCanvas" style="position:fixed; inset:0; z-index:60; display:none; pointer-events:none;"></canvas>
+    <canvas id="boomCanvas" style="position:fixed; inset:0; z-index:70; display:none; pointer-events:none;"></canvas>
 
   </div>
 
 <script>
-/* JARVIS HUD — Single-file JS
-   Features included:
-   - Voice recognition (start/stop), continuous option
-   - Wake-word toggle & custom wake (default: hey jarvis)
-   - Commands: open sites, search, wiki (fetch), calc, timer, screenshot (html2canvas), play music/spotify, jokes, quotes
-   - Camera open/close, snap, switch (front/back)
-   - Flashlight (white overlay), power off/restart animations, lock/unlock UI
-   - Memories store in localStorage, add/delete
-   - Face enroll & login (pixel-diff simple)
-   - Voice meter via WebAudio
-   - Self-destruct canvas animation
-   - Mobile-first HUD look & responsive
-   Note: include required permissions (mic, camera) in browser.
+/* JARVIS PWA HUD - Main JS
+   - Voice-first: listen & speak using Web Speech APIs
+   - Tap-once activation overlay (full-screen) to obtain mic permission (required by mobile browsers)
+   - All commands are voice-driven. UI controls are overlays only (not visible normal buttons)
+   - PWA: service worker is registered below
 */
 
 (async function(){
-  // Element references
-  const btnStart = document.getElementById('btnStart');
-  const btnStop = document.getElementById('btnStop');
-  const btnWakeToggle = document.getElementById('btnWakeToggle');
-  const wakeStateSpan = document.getElementById('wakeState');
+  // ---- Elements ----
+  const activationOverlay = document.getElementById('activationOverlay');
+  const tapHint = document.getElementById('tapHint');
   const statusText = document.getElementById('statusText');
   const sysTime = document.getElementById('sysTime');
   const downlinkVal = document.getElementById('downlinkVal');
-  const voiceMeterBar = document.querySelector('#voiceMeter > div');
-  const miniLog = document.getElementById('miniLog');
+  const voiceMeterFill = document.querySelector('#voiceMeter > div');
   const cameraOverlay = document.getElementById('cameraOverlay');
   const camVideo = document.getElementById('camVideo');
-  const camClose = document.getElementById('camClose');
-  const camSwitch = document.getElementById('camSwitch');
-  const camSnap = document.getElementById('camSnap');
   const camStatus = document.getElementById('camStatus');
-  const flashOverlay = document.getElementById('flashlightOverlay');
-  const flashFill = document.getElementById('flashFill');
-  const flashBtn = document.getElementById('flashBtn');
-  const openCameraBtn = document.getElementById('openCameraBtn');
-  const memPanelBtn = document.getElementById('memPanelBtn');
+  const camMode = document.getElementById('camMode');
+  const flashlightOverlay = document.getElementById('flashlightOverlay');
   const memPanel = document.getElementById('memPanel');
   const memList = document.getElementById('memList');
-  const memAddBtn = document.getElementById('memAddBtn');
   const memInput = document.getElementById('memInput');
-  const selfBtn = document.getElementById('selfBtn');
-  const boomCanvas = document.getElementById('boomCanvas');
-  const unlockBtn = document.getElementById('unlockBtn');
   const powerOverlay = document.getElementById('powerOverlay');
-  const powerText = document.getElementById('powerText');
-  const downlinkWidget = document.getElementById('downlinkWidget');
-  const voiceName = document.getElementById('voiceName');
+  const boomCanvas = document.getElementById('boomCanvas');
+  const voiceNameEl = document.getElementById('voiceName');
 
-  // state
+  // ---- State ----
   let SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   let recognition = null;
   let listening = false;
-  let continuous = false;
-  let wakeOn = false;
+  let wakeOn = false; // default off
   let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
-  let chkVoiceReply = true;
-  let availableVoices = [];
-  let selectedVoiceIndex = localStorage.getItem('jarvis_voice_index') || 0;
-  let synth = window.speechSynthesis;
-  let audioCtx = null;
-  let analyser = null;
-  let meterSource = null;
-  let meterAnimation = null;
   let faceDataUrl = localStorage.getItem('jarvis_face') || null;
-  let camStream = null;
-  let usingBackCam = true;
-  let mems = JSON.parse(localStorage.getItem('jarvis_mems') || '[]');
+  let mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+  let audioCtx = null, analyser = null, meterSource = null, meterFrame = null;
+  let camStream = null, usingBackCam = true;
+  let synth = window.speechSynthesis;
+  let selectedVoiceIndex = parseInt(localStorage.getItem('jarvis_voice_index')||0,10) || 0;
+  let chkVoiceReply = true;
 
-  // quick datasets
+  // small datasets
   const jokes = [
     "Why did the developer go broke? Because he used up all his cache.",
     "Why do programmers prefer dark mode? Because the light attracts bugs.",
@@ -363,9 +244,8 @@
     "You don't have to be great to start, but you have to start to be great."
   ];
 
-  // helpers
-  function logMini(msg){ miniLog.textContent = msg; console.log('[JARVIS]', msg); }
-  function setStatus(msg){ statusText.textContent = msg; logMini(msg); }
+  // ---- Helpers ----
+  function setStatus(s){ statusText.textContent = s; console.log('[JARVIS] ' + s); }
   function speak(text, opts={}) {
     if(!chkVoiceReply) return;
     if(!synth) return;
@@ -374,212 +254,196 @@
     u.rate = opts.rate || 1;
     u.pitch = opts.pitch || 1;
     const voices = synth.getVoices();
-    if(voices && voices.length > 0 && voices[selectedVoiceIndex]) {
+    if(voices && voices.length && voices[selectedVoiceIndex]) {
       u.voice = voices[selectedVoiceIndex];
-      voiceName.textContent = voices[selectedVoiceIndex].name || voices[selectedVoiceIndex].lang;
+      voiceNameEl.textContent = voices[selectedVoiceIndex].name;
     }
     synth.cancel();
     synth.speak(u);
   }
 
-  // populate voices
-  function populateVoices(){
-    if(!synth) return;
-    availableVoices = synth.getVoices() || [];
-    if(availableVoices[selectedVoiceIndex]) voiceName.textContent = availableVoices[selectedVoiceIndex].name;
-  }
-  if(synth && typeof speechSynthesis !== 'undefined') {
-    populateVoices();
-    if(speechSynthesis.onvoiceschanged !== undefined){
-      speechSynthesis.onvoiceschanged = populateVoices;
-    }
-  }
-
-  // time & network metrics
+  // update time and network periodically
   function updateTime(){
     const now = new Date();
     sysTime.textContent = now.toLocaleTimeString();
   }
-  setInterval(updateTime, 1000);
   updateTime();
+  setInterval(updateTime,1000);
 
-  // fake network measure: uses navigator.connection if available else mock
   function updateNetwork(){
     try{
-      if(navigator.connection && navigator.connection.downlink){
-        downlinkVal.textContent = (navigator.connection.downlink || '--') + ' Mbps';
-      } else {
-        // fallback: quick realtime fetch to measure download speed small file
-        downlinkVal.textContent = '-- Mbps';
-      }
-    }catch(e){}
+      if(navigator.connection && navigator.connection.downlink) downlinkVal.textContent = (navigator.connection.downlink.toFixed?navigator.connection.downlink.toFixed(1):navigator.connection.downlink) + ' Mbps';
+      else downlinkVal.textContent = '-- Mbps';
+    }catch(e){ downlinkVal.textContent = '-- Mbps'; }
   }
-  updateNetwork();
-  setInterval(updateNetwork, 7000);
+  updateNetwork(); setInterval(updateNetwork,7000);
 
-  // voice meter
+  // populate speech synthesis voices
+  function populateVoices(){
+    if(!synth) return;
+    const vs = synth.getVoices();
+    if(vs && vs[selectedVoiceIndex]) voiceNameEl.textContent = vs[selectedVoiceIndex].name;
+  }
+  populateVoices();
+  if(typeof speechSynthesis !== 'undefined') speechSynthesis.onvoiceschanged = populateVoices;
+
+  // ---- Voice Meter (WebAudio) ----
   async function startVoiceMeter(){
     try{
       if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
       if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const s = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
       meterSource = audioCtx.createMediaStreamSource(s);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
       meterSource.connect(analyser);
       const data = new Uint8Array(analyser.frequencyBinCount);
-      function loop(){
+      function frame(){
         analyser.getByteFrequencyData(data);
         let sum = 0;
         for(let i=0;i<data.length;i++) sum += data[i];
         const avg = sum / data.length;
         const pct = Math.min(100, Math.round((avg/255)*100));
-        voiceMeterBar.style.width = pct + '%';
-        meterAnimation = requestAnimationFrame(loop);
+        voiceMeterFill.style.width = pct + '%';
+        meterFrame = requestAnimationFrame(frame);
       }
-      loop();
-    }catch(e){ /* ignore */ }
+      frame();
+    }catch(e){ console.warn('VoiceMeter error', e); }
   }
   function stopVoiceMeter(){
-    if(meterAnimation){ cancelAnimationFrame(meterAnimation); meterAnimation = null; }
+    if(meterFrame){ cancelAnimationFrame(meterFrame); meterFrame = null; }
     if(meterSource && meterSource.mediaStream){
       meterSource.mediaStream.getTracks().forEach(t=>t.stop());
       meterSource.disconnect && meterSource.disconnect();
     }
-    analyser = null; voiceMeterBar.style.width = '0%';
+    analyser = null; voiceMeterFill.style.width = '0%';
   }
 
-  // recognition setup
+  // ---- Recognition setup ----
   function setupRecognition(){
-    if(!SpeechRecognition){ setStatus('SpeechRecognition not supported in this browser'); return; }
+    if(!SpeechRecognition){ setStatus('SpeechRecognition not supported — use Chrome/Edge'); return; }
     recognition && recognition.abort && recognition.abort();
     recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
-    recognition.continuous = continuous;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = ()=> {
       listening = true;
-      btnStart.classList.add('listening');
       setStatus('Listening...');
       startVoiceMeter();
     };
     recognition.onend = ()=> {
       listening = false;
-      btnStart.classList.remove('listening');
-      setStatus('Idle');
+      setStatus('Idle (tap to reactivate)');
       stopVoiceMeter();
-      // auto-restart if continuous
-      if(continuous && recognition){
-        try{ recognition.start(); }catch(e){}
-      }
+      // do not auto-restart forever in background
     };
-    recognition.onerror = (ev)=> {
-      setStatus('Error: ' + (ev.error || 'unknown'));
+    recognition.onerror = (ev) => {
+      setStatus('Speech error: ' + (ev.error || 'unknown'));
       stopVoiceMeter();
     };
     recognition.onresult = (ev) => {
-      const r = ev.results[ev.results.length -1][0].transcript.trim();
-      setStatus('Heard: ' + r);
-      handleSpoken(r);
+      const res = ev.results[ev.results.length-1][0].transcript.trim();
+      setStatus('Heard: ' + res);
+      handleSpoken(res);
     };
   }
 
-  // start/stop handlers
-  btnStart.addEventListener('click', async ()=>{
-    if(!SpeechRecognition){ setStatus('SpeechRecognition not supported'); alert('Use Chrome/Edge on mobile for voice recognition.'); return; }
-    if(!recognition) setupRecognition();
+  // ---- Activation overlay (user gesture) ----
+  // Single-tap anywhere to request mic permission and start recognition.
+  async function activateJarvis(){
+    activationOverlay.style.display = 'none';
+    setStatus('Activating microphone...');
     try{
-      recognition.start();
-    }catch(e){}
-  });
-  btnStop.addEventListener('click', ()=>{
-    if(recognition) recognition.stop();
-    listening = false;
-    setStatus('Stopped');
-    stopVoiceMeter();
-  });
+      // request microphone permission via getUserMedia to allow startRecognition reliably on mobile
+      await navigator.mediaDevices.getUserMedia({ audio:true }).then(s => {
+        // immediately stop to let SpeechRecognition control mic
+        s.getTracks().forEach(t=>t.stop());
+      }).catch(e => {
+        console.warn('mic getUserMedia issue', e);
+      });
 
-  // wake toggle
-  btnWakeToggle.addEventListener('click', ()=>{
-    wakeOn = !wakeOn;
-    wakeStateSpan.textContent = wakeOn ? 'On' : 'Off';
-    setStatus('Wake-word ' + (wakeOn ? 'enabled' : 'disabled'));
-  });
+      // setup and start recognition
+      if(!recognition) setupRecognition();
+      try{ recognition.start(); }catch(e){ console.warn('recognition start', e); }
+      speak('Jarvis online. Listening.');
+      setStatus('Jarvis online. Speak any command.');
+    }catch(e){
+      setStatus('Microphone permission required.');
+      activationOverlay.style.display = 'flex';
+      alert('Please allow microphone to use Jarvis.');
+    }
+  }
+  activationOverlay.addEventListener('click', activateJarvis);
 
-  // camera controls
-  openCameraBtn.addEventListener('click', openCamera);
-  camClose.addEventListener('click', closeCamera);
-  camSwitch.addEventListener('click', async ()=>{
-    usingBackCam = !usingBackCam;
-    await openCamera();
-  });
-  camSnap.addEventListener('click', takeCamSnap);
-
-  async function openCamera(){
+  // ---- Camera ----
+  async function openCamera(back=true){
     try{
       cameraOverlay.classList.add('show');
+      cameraOverlay.style.display = 'flex';
       if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: usingBackCam ? { ideal:'environment' } : 'user' }, audio:false });
+      const constraint = { video:{ facingMode: back ? { ideal: 'environment' } : 'user' }, audio:false };
+      camStream = await navigator.mediaDevices.getUserMedia(constraint);
       camVideo.srcObject = camStream;
       await camVideo.play();
       camStatus.textContent = 'Camera open';
+      camMode.textContent = back ? 'Back' : 'Front';
       setStatus('Camera opened');
     }catch(e){
       setStatus('Camera error: ' + e.message);
-      alert('Camera permission required or device error.');
-      cameraOverlay.classList.remove('show');
+      alert('Camera error or permission denied.');
     }
   }
   function closeCamera(){
-    cameraOverlay.classList.remove('show');
+    cameraOverlay.classList.remove('show'); cameraOverlay.style.display = 'none';
     if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-    camVideo.pause(); camVideo.srcObject = null;
+    if(camVideo) { camVideo.pause(); camVideo.srcObject = null; }
     setStatus('Camera closed');
   }
-  function takeCamSnap(){
+  // camera overlay closes when user taps outside video
+  cameraOverlay.addEventListener('click', (e)=>{ if(e.target === cameraOverlay) closeCamera(); });
+
+  async function takeCameraSnap(){
     if(!camStream) return;
     const v = camVideo;
     const c = document.createElement('canvas');
     c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
     const url = c.toDataURL('image/png');
     const a = document.createElement('a'); a.href = url; a.download = 'jarvis-snap.png'; a.click();
-    setStatus('Snapshot saved');
     speak('Snapshot saved');
+    setStatus('Snapshot taken');
   }
 
-  // flashlight (white fullscreen overlay) toggling
+  // ---- Flashlight (simulate via white overlay) ----
   let flashOn = false;
-  flashBtn.addEventListener('click', ()=> flashlight(!flashOn));
   function flashlight(on){
     flashOn = !!on;
     if(flashOn){
-      flashOverlay.classList.add('show');
-      flashFill.style.background = '#ffffff';
-      // reduce brightness to mimic torch
-      setTimeout(()=> flashOverlay.style.display = 'flex', 10);
-      setStatus('Flashlight on (overlay)');
+      flashlightOverlay.classList.add('show'); flashlightOverlay.style.display = 'flex';
+      setStatus('Flashlight on');
     } else {
-      flashOverlay.classList.remove('show');
+      flashlightOverlay.classList.remove('show'); flashlightOverlay.style.display = 'none';
       setStatus('Flashlight off');
     }
   }
 
-  // memories
+  // ---- Memories ----
   function renderMemories(){
     memList.innerHTML = '';
-    if(!mems || mems.length === 0){ memList.textContent = 'No memories saved'; return; }
-    mems.slice().reverse().forEach((m, i)=>{
+    if(!mems.length){ memList.textContent = 'No memories saved'; return; }
+    mems.slice().reverse().forEach((m, i) => {
       const idx = mems.length - 1 - i;
       const d = document.createElement('div');
-      d.style.padding = '8px'; d.style.borderBottom = '1px dashed rgba(255,255,255,0.04)';
-      d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:4px">${escapeHtml(m.text)}</div><div style="margin-top:6px"><button data-i="${idx}" class="mini mem-del">Delete</button></div>`;
+      d.style.padding = '8px';
+      d.style.borderBottom = '1px dashed rgba(255,255,255,0.03)';
+      d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="margin-top:8px"><button data-i="${idx}" data-action="del" style="background:none;border:1px solid rgba(0,255,255,0.06);border-radius:8px;padding:6px;color:var(--neon)">Delete</button></div>`;
       memList.appendChild(d);
     });
-    memList.querySelectorAll('.mem-del').forEach(b=>{
-      b.addEventListener('click', ()=>{
+    memList.querySelectorAll('button[data-action="del"]').forEach(b => {
+      b.addEventListener('click', ()=> {
         const idx = parseInt(b.getAttribute('data-i'),10);
         mems.splice(idx,1);
         localStorage.setItem('jarvis_mems', JSON.stringify(mems));
@@ -588,134 +452,20 @@
       });
     });
   }
-  memPanelBtn.addEventListener('click', ()=> { memPanel.style.display = memPanel.style.display === 'none' ? 'block' : 'none'; renderMemories(); });
-  memAddBtn.addEventListener('click', ()=>{
-    const t = memInput.value.trim();
-    if(!t) return alert('Type a memory to save');
-    mems.push({ text: t, time: Date.now() });
-    localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-    memInput.value = '';
-    renderMemories();
-    speak('Memory saved');
+  memInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      const t = memInput.value.trim(); if(!t) return;
+      mems.push({ text: t, time: Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+      memInput.value = ''; renderMemories(); speak('Memory saved');
+    }
   });
 
-  // self-destruct
-  selfBtn.addEventListener('click', runSelfDestruct);
-  function runSelfDestruct(){
-    const c = boomCanvas;
-    c.width = window.innerWidth; c.height = window.innerHeight; c.style.display = 'block';
-    const ctx = c.getContext('2d');
-    const sparks = [];
-    for(let i=0;i<220;i++){
-      sparks.push({
-        x: window.innerWidth/2 + (Math.random()-0.5)*200,
-        y: window.innerHeight/2 + (Math.random()-0.5)*200,
-        vx: (Math.random()-0.5)*14,
-        vy: (Math.random()-0.9)*14 - 4,
-        r: Math.random()*6+2,
-        life: Math.random()*100+40,
-        color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,`
-      });
-    }
-    let t=0;
-    speak('Self destruct sequence initiated. Three. Two. One.');
-    const orig = document.body.style.transform || '';
-    let id = setInterval(()=>{
-      ctx.fillStyle = 'rgba(0,0,0,0.14)';
-      ctx.fillRect(0,0,c.width,c.height);
-      sparks.forEach(p=>{
-        p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--;
-        ctx.beginPath();
-        ctx.fillStyle = p.color + (p.life/140) + ')';
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      });
-      t++;
-      if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
-      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; setStatus('Self-destruct finished'); }
-    }, 16);
-  }
-
-  // screenshot using html2canvas (load from CDN)
-  async function takeScreenshot(){
-    if(typeof html2canvas === 'undefined'){
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-    }
-    try{
-      speak('Taking screenshot');
-      const node = document.documentElement;
-      const canvas = await html2canvas(node, { logging:false, useCORS:true, scale: window.devicePixelRatio || 1 });
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a'); a.href = url; a.download = 'jarvis-screenshot.png'; a.click();
-      setStatus('Screenshot taken');
-    }catch(e){ setStatus('Screenshot failed: ' + e.message); }
-  }
-
-  // small utility load script
-  function loadScript(src){
-    return new Promise((res, rej)=>{
-      const s = document.createElement('script');
-      s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
-    });
-  }
-
-  // escape HTML
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
-
-  // power off / restart simulation
-  function powerOffAnimation(){
-    powerOverlay.classList.add('show');
-    powerOverlay.style.display = 'flex';
-    powerText.textContent = 'Powering off...';
-    setStatus('Simulated power off');
-    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 700);
-  }
-  function restartAnimation(){
-    powerOverlay.classList.add('show');
-    powerOverlay.style.display = 'flex';
-    powerText.textContent = 'Restarting...';
-    setStatus('Simulated restart');
-    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
-    setTimeout(()=> {
-      document.body.style.filter='';
-      powerOverlay.classList.remove('show');
-      powerOverlay.style.display = 'none';
-      setStatus('Restart complete');
-    }, 3200);
-  }
-
-  // lock/unlock UI
-  function lockScreen(){
-    document.getElementById('lockOverlay').classList.add('show');
-    document.getElementById('lockOverlay').style.display = 'flex';
-    setStatus('Screen locked');
-  }
-  function unlockScreen(){
-    document.getElementById('lockOverlay').classList.remove('show');
-    document.getElementById('lockOverlay').style.display = 'none';
-    setStatus('Screen unlocked');
-  }
-  unlockBtn && unlockBtn.addEventListener('click', unlockScreen);
-
-  // open external site helpers
-  function openSite(url){
-    window.open(url, '_blank');
-  }
-
-  // memory spoken/typed commands handler
-  function saveMemory(text){
-    mems.push({ text: text, time: Date.now() });
-    localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-    renderMemories();
-  }
-
-  // face capture & comparing
+  // ---- Face enroll/login (naive pixel diff) ----
   async function captureFaceEnroll(){
     try{
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
-      const v = document.createElement('video');
-      v.srcObject = s; v.play();
-      await new Promise(r => setTimeout(r, 500));
+      const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+      const v = document.createElement('video'); v.srcObject = s; await v.play();
+      await new Promise(r => setTimeout(r,500));
       const c = document.createElement('canvas'); c.width = v.videoWidth || 320; c.height = v.videoHeight || 240;
       c.getContext('2d').drawImage(v,0,0,c.width,c.height);
       const data = c.toDataURL('image/png');
@@ -723,114 +473,102 @@
       faceDataUrl = data;
       s.getTracks().forEach(t=>t.stop());
       v.remove();
-      setStatus('Face enrolled');
       speak('Face captured and enrolled');
-    }catch(e){ setStatus('Face enrollment failed: ' + e.message); }
+      setStatus('Face enrolled');
+    }catch(e){ setStatus('Face enroll failed: ' + e.message); }
   }
-
   async function faceLogin(){
-    if(!faceDataUrl) return alert('No face enrolled. Use capture first.');
+    if(!faceDataUrl){ speak('No face enrolled'); return; }
     try{
       const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-      const v = document.createElement('video'); v.srcObject = s; v.play();
-      await new Promise(r=>setTimeout(r, 500));
+      const v = document.createElement('video'); v.srcObject = s; await v.play();
+      await new Promise(r => setTimeout(r,500));
       const c = document.createElement('canvas'); c.width = v.videoWidth || 320; c.height = v.videoHeight || 240;
-      c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-      const current = c.toDataURL('image/png');
-      s.getTracks().forEach(t=>t.stop());
-      v.remove();
+      c.getContext('2d').drawImage(v,0,0,c.width,c.height); const current = c.toDataURL('image/png');
+      s.getTracks().forEach(t=>t.stop()); v.remove();
       const diff = await computeImageDiff(faceDataUrl, current);
-      if(diff < 0.12){
-        setStatus('Face login success');
-        speak('Face matched. Welcome back.');
-        document.body.style.border = '6px solid rgba(34,197,94,0.18)';
-        setTimeout(()=> document.body.style.border = '', 1800);
-      } else {
-        setStatus('Face login failed');
-        speak('Face did not match');
-        alert('Face did not match. Try enrolling again.');
-      }
+      if(diff < 0.12){ speak('Face matched. Welcome back.'); setStatus('Face login success'); }
+      else { speak('Face not matched'); setStatus('Face login failure'); }
     }catch(e){ setStatus('Face login error: ' + e.message); }
   }
-
-  // compute image diff naive
   async function computeImageDiff(aDataUrl, bDataUrl){
     function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
     const [ia, ib] = await Promise.all([loadImage(aDataUrl), loadImage(bDataUrl)]);
-    const w = Math.min(ia.width, ib.width, 160);
-    const h = Math.min(ia.height, ib.height, 120);
-    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta = ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
-    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb = cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
-    const da = cta.getImageData(0,0,w,h).data;
-    const db = ctb.getImageData(0,0,w,h).data;
-    let sum=0; let len=0;
-    for(let i=0;i<da.length;i+=4){
-      const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2];
-      const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2];
-      sum += Math.abs(la-lb);
-      len++;
-    }
-    const avg = sum / (len*255);
-    return avg;
+    const w = Math.min(ia.width, ib.width, 160); const h = Math.min(ia.height, ib.height, 120);
+    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta=ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
+    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb=cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
+    const da = cta.getImageData(0,0,w,h).data; const db = ctb.getImageData(0,0,w,h).data;
+    let sum=0, len=0;
+    for(let i=0;i<da.length;i+=4){ const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2]; const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2]; sum += Math.abs(la-lb); len++; }
+    const avg = sum / (len*255); return avg;
   }
 
-  // main command handler (core)
+  // ---- Self-destruct animation (canvas) ----
+  function runSelfDestruct(){
+    const c = boomCanvas; c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block'; const ctx = c.getContext('2d');
+    const sparks = [];
+    for(let i=0;i<220;i++){
+      sparks.push({ x: window.innerWidth/2 + (Math.random()-0.5)*200, y: window.innerHeight/2 + (Math.random()-0.5)*200, vx: (Math.random()-0.5)*14, vy: (Math.random()-0.9)*14 - 4, r: Math.random()*6+2, life: Math.random()*100+40, color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,` });
+    }
+    let t=0; speak('Self destruct sequence initiated. Three. Two. One.');
+    const orig = document.body.style.transform || '';
+    let id = setInterval(()=>{
+      ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(0,0,c.width,c.height);
+      sparks.forEach(p=>{ p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--; ctx.beginPath(); ctx.fillStyle = p.color + (p.life/140) + ')'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
+      t++;
+      if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
+      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; setStatus('Self-destruct finished'); }
+    }, 16);
+  }
+
+  // ---- Screenshot via html2canvas (load CDN) ----
+  async function takeScreenshot(){
+    if(typeof html2canvas === 'undefined') await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    try{
+      speak('Taking screenshot'); const node = document.documentElement; const canvas = await html2canvas(node, { logging:false, useCORS:true, scale: window.devicePixelRatio || 1 }); const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = 'jarvis-screenshot.png'; a.click(); setStatus('Screenshot saved');
+    }catch(e){ setStatus('Screenshot failed: ' + e.message); }
+  }
+  function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('fail '+src)); document.head.appendChild(s); }); }
+
+  // ---- Mini utilities ----
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+  function openSite(url){ window.open(url, '_blank'); }
+
+  // ---- Command engine: maps voice to actions ----
   async function handleSpoken(raw){
-    if(!raw || typeof raw !== 'string') return;
+    if(!raw) return;
     const text = raw.trim();
     const lower = text.toLowerCase();
 
-    // wake-word handling
+    // If wakeOn is enabled, ensure wakeword present
     if(wakeOn){
       const wake = customWake.toLowerCase();
       const allowed = [wake, 'hey jarvis', 'ok jarvis'];
       let heardWake = false;
       for(const w of allowed) if(lower.startsWith(w)) { heardWake = true; break; }
-      if(!heardWake){
-        // ignore commands unless wake required
-        setStatus('Wake-word required. Ignored: ' + text);
-        return;
-      }
+      if(!heardWake){ setStatus('Ignored (wakeword required): ' + text); return; }
       // strip wake phrase
       let cmd = lower;
-      allowed.forEach(w => { cmd = cmd.replace(new RegExp('^' + escapeRegExp(w),'i'),'').trim(); });
+      allowed.forEach(w=> cmd = cmd.replace(new RegExp('^' + escapeRegExp(w),'i'),'').trim());
       return await runCommand(cmd || '');
     } else {
       return await runCommand(lower);
     }
   }
 
-  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
   async function runCommand(lower){
     if(!lower) { speak('Yes?'); return; }
     setStatus('Executing: ' + lower);
 
-    // simple greetings
-    if(/^(hi|hello|hey|hey jarvis|ok jarvis)\b/.test(lower)){
-      speak('Hello boss. I am J A R V I S. How can I assist?');
-      return;
-    }
-    if(lower.includes('who are you') || lower.includes('what is your name')){
-      speak('I am J A R V I S, your personal assistant.');
-      return;
-    }
+    // greetings
+    if(/^(hi|hello|hey)\b/.test(lower)){ speak('Hello boss. Jarvis at your service.'); return; }
+    if(lower.includes('who are you') || lower.includes('what is your name')){ speak('I am Jarvis, your assistant.'); return; }
 
     // time/date
-    if(lower.includes('time')){
-      const now = new Date();
-      const out = 'The time is ' + now.toLocaleTimeString();
-      speak(out);
-      return;
-    }
-    if(lower.includes('date')){
-      const now = new Date();
-      const out = 'Today is ' + now.toLocaleDateString();
-      speak(out);
-      return;
-    }
+    if(lower.includes('time')){ const now = new Date(); speak('The time is ' + now.toLocaleTimeString()); return; }
+    if(lower.includes('date')){ const now = new Date(); speak('Today is ' + now.toLocaleDateString()); return; }
 
-    // open known site
+    // open sites
     if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify|maps|whatsapp|gallery)\b/)){
       if(lower.includes('youtube')) openSite('https://youtube.com');
       else if(lower.includes('google')) openSite('https://google.com');
@@ -840,247 +578,151 @@
       else if(lower.includes('maps')) openSite('https://maps.google.com');
       else if(lower.includes('whatsapp')) openSite('https://web.whatsapp.com');
       else if(lower.includes('gallery')) openSite('https://photos.google.com');
-      speak('Opening ' + lower.split(' ')[1]);
-      return;
+      speak('Opening ' + lower.split(' ')[1]); return;
     }
 
     // search
     if(lower.startsWith('search ') || lower.startsWith('google ')){
-      const q = lower.replace(/^(search|google)\s+/,'').trim();
-      if(!q){ speak('What should I search for?'); return; }
-      speak('Searching for ' + q);
-      openSite('https://www.google.com/search?q=' + encodeURIComponent(q));
-      return;
+      const q = lower.replace(/^(search|google)\s+/,'').trim(); if(!q){ speak('What should I search?'); return; }
+      speak('Searching for ' + q); openSite('https://www.google.com/search?q=' + encodeURIComponent(q)); return;
     }
 
-    // wikipedia quick summary
+    // wiki
     if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')){
-      const term = lower.replace(/^(wiki|wikipedia)\s+/,'').trim();
-      if(!term){ speak('What do you want from Wikipedia?'); return; }
+      const term = lower.replace(/^(wiki|wikipedia)\s+/,'').trim(); if(!term){ speak('What from Wikipedia?'); return; }
       speak('Fetching summary for ' + term);
-      try{
-        const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term);
-        const r = await fetch(api);
-        if(!r.ok){ speak('No page found for ' + term); return; }
-        const j = await r.json();
-        const extract = j.extract ? (j.extract.split('. ').slice(0,2).join('. ') + '.') : 'No summary available.';
-        speak(extract);
-      }catch(e){ speak('Failed to fetch Wikipedia.'); }
+      try{ const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term); const r = await fetch(api); if(!r.ok){ speak('No page found for ' + term); return; } const j = await r.json(); const extract = j.extract ? (j.extract.split('. ').slice(0,2).join('. ') + '.') : 'No summary.'; speak(extract); }catch(e){ speak('Failed to fetch Wikipedia.'); }
       return;
     }
 
-    // calc
+    // calculate
     if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9+\-*/(). %]+$/.test(lower)){
-      const expr = lower.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
-      if(!expr){ speak('I could not parse the expression'); return; }
-      try{
-        const val = Function('"use strict";return (' + expr + ')')();
-        speak('The result is ' + val);
-      }catch(e){ speak('Sorry, cannot calculate that'); }
-      return;
+      const expr = lower.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,''); if(!expr){ speak('I could not parse the expression'); return; }
+      try{ const val = Function('"use strict";return (' + expr + ')')(); speak('Result is ' + val); }catch(e){ speak('Cannot calculate that'); } return;
     }
 
     // timer
     if(lower.startsWith('set timer') || lower.match(/\btimer\b/)){
-      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|mins|secs)?/);
-      if(!m){ speak('Tell me how long, in seconds or minutes'); return; }
-      const num = parseInt(m[1],10); const unit = (m[2] || 'seconds');
-      const ms = unit.startsWith('min') ? num*60*1000 : num*1000;
+      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|mins|secs)?/); if(!m){ speak('Tell me how long'); return; }
+      const num = parseInt(m[1],10); const unit = (m[2] || 'seconds'); const ms = unit.startsWith('min') ? num*60*1000 : num*1000;
       speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-      setTimeout(()=>{ speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds')); alert('Timer finished'); }, ms);
-      return;
+      setTimeout(()=>{ speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds')); alert('Timer finished'); }, ms); return;
     }
 
-    // music / spotify
-    if(lower.includes('play music') || lower.includes('play spotify') || lower.includes('play song')){
-      speak('Opening music');
-      openSite('https://open.spotify.com');
-      return;
-    }
+    // music
+    if(lower.includes('play music') || lower.includes('play spotify') || lower.includes('play song')){ speak('Opening music'); openSite('https://open.spotify.com'); return; }
 
     // jokes / quotes
-    if(lower.includes('joke')){
-      const j = jokes[Math.floor(Math.random()*jokes.length)];
-      speak(j);
-      return;
-    }
-    if(lower.includes('motivate') || lower.includes('quote') || lower.includes('motivation')){
-      const q = quotes[Math.floor(Math.random()*quotes.length)];
-      speak(q);
-      return;
-    }
+    if(lower.includes('joke')){ const j = jokes[Math.floor(Math.random()*jokes.length)]; speak(j); return; }
+    if(lower.includes('motivate') || lower.includes('quote')){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return; }
 
     // weather
-    if(lower.includes('weather')){
-      const m = lower.match(/weather in ([a-zA-Z\s]+)/);
-      const q = m ? m[1].trim() : '';
-      if(q) { speak('Opening weather for ' + q); openSite('https://wttr.in/' + encodeURIComponent(q)); }
-      else { speak('Opening weather'); openSite('https://wttr.in/?format=3'); }
-      return;
-    }
+    if(lower.includes('weather')){ const m = lower.match(/weather in ([a-zA-Z\s]+)/); const q = m ? m[1].trim() : ''; if(q) { speak('Opening weather for ' + q); openSite('https://wttr.in/' + encodeURIComponent(q)); } else { speak('Opening weather'); openSite('https://wttr.in/?format=3'); } return; }
 
     // translate
-    if(lower.startsWith('translate ')){
-      const m = lower.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i);
-      if(m){ const phrase = m[1]; const target = m[2]; speak('Translating to ' + target); openSite('https://translate.google.com/?sl=auto&tl=' + encodeURIComponent(target) + '&text=' + encodeURIComponent(phrase) + '&op=translate'); }
-      else { speak('Opening translate'); openSite('https://translate.google.com'); }
-      return;
-    }
+    if(lower.startsWith('translate ')){ const m = lower.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i); if(m){ const phrase = m[1]; const target = m[2]; speak('Translating to ' + target); openSite('https://translate.google.com/?sl=auto&tl=' + encodeURIComponent(target) + '&text=' + encodeURIComponent(phrase) + '&op=translate'); } else { speak('Opening translate'); openSite('https://translate.google.com'); } return; }
 
     // memory
-    if(lower.startsWith('remember ')){
-      const mem = text.replace(/^remember\s+/i,'').trim();
-      if(mem){ saveMemory(mem); speak('Remembered: ' + mem); } else speak('What should I remember?');
-      return;
-    }
-    if(lower.includes('what do you remember') || lower.includes('list memories') || lower.includes('show memories')){
-      if(!mems.length) { speak('You have no saved memories'); return; }
-      speak('You asked me to remember ' + mems.length + ' items. Showing them now.');
-      memPanel.style.display = 'block';
-      renderMemories();
-      return;
-    }
+    if(lower.startsWith('remember ')){ const mem = lower.replace(/^remember\s+/,'').trim(); if(mem){ mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); speak('Remembered: ' + mem); } else speak('What should I remember?'); return; }
+    if(lower.includes('what do you remember') || lower.includes('show memories') || lower.includes('list memories')){ if(!mems.length){ speak('No memories'); return; } speak('You asked me to remember ' + mems.length + ' items. Opening memories.'); memPanel.style.display = 'block'; renderMemories(); return; }
 
     // screenshot
-    if(lower.includes('screenshot') || lower.includes('screen shot') || lower.includes('capture screen')){
-      takeScreenshot();
-      return;
-    }
+    if(lower.includes('screenshot') || lower.includes('capture screen')){ takeScreenshot(); return; }
 
-    // power actions
-    if(lower.includes('power off') || lower.includes('shutdown')){
-      powerOffAnimation();
-      return;
-    }
-    if(lower.includes('restart')){
-      restartAnimation();
-      return;
-    }
+    // power
+    if(lower.includes('power off') || lower.includes('shutdown')){ powerOverlay.classList.add('show'); powerOverlay.style.display = 'flex'; powerOverlay.style.pointerEvents='auto'; setStatus('Simulated power off'); setTimeout(()=> document.body.style.filter='brightness(0)',700); return; }
+    if(lower.includes('restart')){ powerOverlay.classList.add('show'); powerOverlay.style.display='flex'; setStatus('Restarting...'); setTimeout(()=> document.body.style.filter='brightness(0)',700); setTimeout(()=>{ document.body.style.filter=''; powerOverlay.classList.remove('show'); powerOverlay.style.display='none'; setStatus('Restart complete'); },3200); return; }
 
     // flashlight
-    if(lower.includes('flashlight on') || lower.includes('torch on')){
-      flashlight(true); return;
-    }
-    if(lower.includes('flashlight off') || lower.includes('torch off')){
-      flashlight(false); return;
-    }
+    if(lower.includes('flashlight on') || lower.includes('torch on')){ flashlight(true); return; }
+    if(lower.includes('flashlight off') || lower.includes('torch off')){ flashlight(false); return; }
 
     // camera
-    if(lower.includes('open camera') || lower.includes('show camera')){
-      openCamera(); return;
-    }
-    if(lower.includes('close camera') || lower.includes('hide camera')){
-      closeCamera(); return;
-    }
+    if(lower.includes('open camera') || lower.includes('show camera')){ usingBackCam = !/front/.test(lower) ; await openCamera(usingBackCam); return; }
+    if(lower.includes('close camera') || lower.includes('hide camera')){ closeCamera(); return; }
+    if(lower.includes('snap') || lower.includes('take snapshot') || lower.includes('take photo')){ await takeCameraSnap(); return; }
 
-    // whatsapp/gallery
-    if(lower.includes('whatsapp')){
-      openSite('https://web.whatsapp.com'); return;
-    }
-    if(lower.includes('gallery')){
-      openSite('https://photos.google.com'); return;
-    }
+    // vibrate
+    if(lower.includes('vibrate')){ if('vibrate' in navigator){ navigator.vibrate([60,40,60]); speak('Vibrating'); } else speak('Vibration not supported'); return; }
 
-    // vibrate (if available)
-    if(lower.includes('vibrate')){
-      if('vibrate' in navigator){ navigator.vibrate([60,40,60]); speak('Vibrating'); } else speak('Vibration not supported');
-      return;
-    }
-
-    // lock/unlock
-    if(lower.includes('lock screen') || lower.includes('lock the screen')){
-      lockScreen(); return;
-    }
-    if(lower.includes('unlock screen')){
-      unlockScreen(); return;
-    }
+    // lock/unlock UI
+    if(lower.includes('lock screen')){ document.getElementById('powerOverlay').classList.add('show'); document.getElementById('powerOverlay').style.display='flex'; setStatus('Screen locked (simulated)'); return; }
+    if(lower.includes('unlock screen')){ document.getElementById('powerOverlay').classList.remove('show'); document.getElementById('powerOverlay').style.display='none'; setStatus('Unlocked'); return; }
 
     // news
-    if(lower.includes('news') || lower.includes('top news')){
-      speak('Opening top news'); openSite('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en'); return;
-    }
+    if(lower.includes('news') || lower.includes('top news')){ speak('Opening top news'); openSite('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en'); return; }
 
-    // physics wallah special
-    if(lower.includes('physics wallah') || lower.includes('open pw')){
-      speak('Opening Physics Wallah'); openSite('https://www.pw.live/'); return;
-    }
+    // PW special
+    if(lower.includes('physics wallah') || lower.includes('open pw')){ speak('Opening Physics Wallah'); openSite('https://www.pw.live/'); return; }
 
     // games
-    if(lower.includes('rock paper scissors') || lower.includes('play rps')){
-      playRPS(); return;
-    }
-    if(lower.includes('guess number') || lower.includes('play guess')){
-      playGuess(); return;
-    }
+    if(lower.includes('rock paper scissors') || lower.includes('play rps')){ playRPS(); return; }
+    if(lower.includes('guess number') || lower.includes('play guess')){ playGuess(); return; }
 
     // face enroll/login
-    if(lower.includes('capture face') || lower.includes('enroll face') || lower.includes('enroll my face')){
-      await captureFaceEnroll(); return;
-    }
-    if(lower.includes('login with face') || lower.includes('face login')){
-      await faceLogin(); return;
-    }
+    if(lower.includes('enroll face') || lower.includes('capture face')){ await captureFaceEnroll(); return; }
+    if(lower.includes('face login') || lower.includes('login with face')){ await faceLogin(); return; }
 
-    // fallback - ask to search
-    speak('I did not understand. Do you want me to search the web for ' + text + '?');
-    if(confirm('Search web for "' + text + '"?')) openSite('https://www.google.com/search?q=' + encodeURIComponent(text));
+    // self destruct
+    if(lower.includes('self destruct')){ runSelfDestruct(); return; }
+
+    // fallback: ask to search
+    speak('I did not understand. Should I search the web for ' + lower + '?');
+    if(confirm('Search web for "' + lower + '"?')) openSite('https://www.google.com/search?q=' + encodeURIComponent(lower));
   }
 
-  // quick games
+  // ---- Games ----
   function playRPS(){
-    const choices = ['rock','paper','scissors'];
-    const user = prompt('Choose rock, paper or scissors:');
-    if(!user) return;
-    const u = user.toLowerCase().trim();
-    if(!choices.includes(u)){ alert('Invalid'); return; }
-    const bot = choices[Math.floor(Math.random()*3)];
-    let res = 'Draw';
-    if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
-    else if(u===bot) res='Draw';
-    else res='You lose!';
-    speak(`You chose ${u}. I chose ${bot}. ${res}`);
-    alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
+    const choices = ['rock','paper','scissors']; const user = prompt('Choose rock, paper or scissors:'); if(!user) return; const u = user.toLowerCase().trim(); if(!choices.includes(u)){ alert('Invalid'); return; } const bot = choices[Math.floor(Math.random()*3)]; let res = 'Draw'; if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!'; else if(u===bot) res='Draw'; else res='You lose!'; speak(`You chose ${u}. I chose ${bot}. ${res}`); alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
   }
   function playGuess(){
-    const target = Math.floor(Math.random()*50)+1;
-    let tries=0; let ok=false;
-    while(tries<7){
-      const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries));
-      if(g===null) return;
-      const n = parseInt(g,10);
-      if(isNaN(n)){ alert('Enter a number'); continue; }
-      tries++;
-      if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; }
-      else if(n<target){ speak('Higher'); alert('Higher'); }
-      else { speak('Lower'); alert('Lower'); }
-    }
-    if(!ok){ speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
+    const target = Math.floor(Math.random()*50)+1; let tries=0; let ok=false; while(tries<7){ const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries)); if(g===null) return; const n = parseInt(g,10); if(isNaN(n)){ alert('Enter a number'); continue; } tries++; if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; } else if(n<target){ speak('Higher'); alert('Higher'); } else { speak('Lower'); alert('Lower'); } } if(!ok){ speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); } }
+
+  // ---- Render memories on panel ----
+  function renderMemories(){ memPanel.style.display = 'block'; memList.innerHTML = ''; if(!mems.length){ memList.textContent = 'No memories saved'; return; } mems.slice().reverse().forEach((m,i)=>{ const idx = mems.length - 1 - i; const d = document.createElement('div'); d.style.padding='8px'; d.style.borderBottom='1px dashed rgba(255,255,255,0.03)'; d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="margin-top:8px"><button data-i="${idx}" style="background:none;border:1px solid rgba(0,255,255,0.06);border-radius:8px;padding:6px;color:var(--neon)">Delete</button></div>`; memList.appendChild(d); }); memList.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ const idx = parseInt(b.getAttribute('data-i'),10); mems.splice(idx,1); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory deleted'); })); }
+
+  // ---- start recognition on activation (user gesture) ----
+  function startRecognition(){
+    if(!SpeechRecognition){ setStatus('SpeechRecognition unsupported'); alert('Use Chrome/Edge for voice'); return; }
+    if(!recognition) setupRecognition();
+    try{ recognition.start(); }catch(e){ console.warn('start error', e); }
   }
 
-  // extras: open news etc handled earlier
+  // ---- expose some debugging commands by long-press (hidden) ----
+  // Long-press top-left corner to toggle wake-word and to enroll face (power user)
+  let longTimer = null, longCount = 0;
+  document.addEventListener('touchstart', (e)=>{
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    if(x < 60 && y < 60){
+      longTimer = setTimeout(()=>{ longCount++; if(longCount % 2 === 1){ wakeOn = !wakeOn; setStatus('Wake-word ' + (wakeOn ? 'enabled' : 'disabled')); speak('Wake word ' + (wakeOn ? 'enabled' : 'disabled')); } else { captureFaceEnroll(); } }, 800);
+    }
+  });
+  document.addEventListener('touchend', ()=>{ if(longTimer) clearTimeout(longTimer); longTimer = null; });
 
-  // extras: small UI interactions
-  document.getElementById('camClose').addEventListener('click', closeCamera);
+  // ---- activation overlay click already defined ----
 
-  // initial load
+  // ---- small global helpers ----
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // ---- Web installability prompt handled by browser; register service worker ----
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(()=> console.log('SW registered')).catch(e=> console.warn('SW failed', e));
+  }
+
+  // ---- initial UI and state ----
   function init(){
-    setStatus('Jarvis ready. Press Start Listening.');
-    // Setup recognition if supported
-    if(SpeechRecognition) setupRecognition();
-    populateVoices();
+    setStatus('Jarvis ready — tap the screen to activate microphone');
     renderMemories();
-
-    // show enrolled face status visually in mini log
-    if(faceDataUrl) setStatus('Face enrolled');
+    populateVoices();
   }
   init();
 
-  // expose some controls for dev debugging
-  window.Jarvis = {
-    speak, runSelfDestruct, openCamera, closeCamera, flashlight, takeScreenshot
-  };
+  // ---- global exposures for debugging in console ----
+  window.Jarvis = { speak, openSite, runSelfDestruct, openCamera, closeCamera, flashlight, takeScreenshot, captureFaceEnroll, faceLogin: faceLogin, mems };
 
-})();
+  // ---- auto-start recognition when overlay is clicked (done above) ----
+
+})(); // end IIFE
 </script>
 </body>
 </html>
