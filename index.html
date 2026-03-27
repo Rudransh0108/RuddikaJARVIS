@@ -729,35 +729,35 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
     isPlaying = true;
     speak("Playing " + song);
   }
-      return;
+    
     }
     if(text.includes("pause")){
   player.src = "";
   isPlaying = false;
   speak("Music paused");
-      return;
+      
     }
 if(text.includes("next")){
   if(player.src !== ""){
     player.src = player.src; // reload = next video
     speak("Playing next song");
   }
-  return;
+  
 }
     if(text.includes("stop")){
   player.src = "";
   isPlaying = false;
   speak("Music stopped");
-      return;
+      
     }
     if(text.includes("volume up")){
   speak("Volume increased");
-      return;
+      
 }
 
 if(text.includes("volume down")){
   speak("Volume decreased");
-  return;
+  
 }
     
     // whatsapp/gallery
@@ -824,24 +824,7 @@ if(text.includes("whatsapp")){
     
       return;
     }
-    if(text.includes("play")){
-  
-  let song = text.replace("play", "").trim();
-
-  if(song === ""){
-    speak("Please tell song name");
-  } else {
-
-    let url = "https://www.youtube.com/embed?listType=search&list=" 
-              + encodeURIComponent(song) + "&autoplay=1";
-
-    window.open(url, "_blank");
-
-    speak("Playing " + song);
-  }
-
-      return;
-    }
+    
 
     // physics wallah (special)
     if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
