@@ -96,7 +96,10 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
 </style>
 </head>
 <body>
-  <iframe id="player" width="300" height="200" allow="autoplay"></iframe>
+  <iframe id="player" width="300" height="200"
+allow="autoplay; encrypted-media"
+allowfullscreen>
+</iframe>
   <video id="video" width="250" height="200" autoplay></video>
 <br>
 <button onclick="checkFace()">Face Login</button>
@@ -722,20 +725,18 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
     speak("Tell me song name");
   } else {
 
-    player.src = 
-    "https://www.youtube.com/embed?listType=search&list=" 
-    + encodeURIComponent(song) + "&autoplay=1";
+    let player = document.getElementById("player");
 
-    isPlaying = true;
+    player.src = "https://www.youtube.com/embed?listType=search&list="
+                 + encodeURIComponent(song)
+                 + "&autoplay=1&mute=1";
+
     speak("Playing " + song);
   }
-    
     }
     if(text.includes("pause")){
-  player.src = "";
-  isPlaying = false;
-  speak("Music paused");
-      
+  document.getElementById("player").src = "";
+  speak("Paused");
     }
 if(text.includes("next")){
   if(player.src !== ""){
