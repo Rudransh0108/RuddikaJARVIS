@@ -688,9 +688,9 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       closeCamera();
       return;
     }
-    if(text.includes("youtube")){
+    
+  if(text.includes("youtube")){
   
-  // song name extract karo
   let song = text.replace("play", "")
                  .replace("on youtube", "")
                  .replace("youtube", "")
@@ -700,16 +700,15 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
     speak("Please tell song name");
   } else {
 
-    let url = "https://www.youtube.com/embed?listType=search&list=" 
-              + encodeURIComponent(song) 
-              + "&autoplay=1&mute=1";
+    let url = "https://www.youtube.com/results?search_query=" 
+              + encodeURIComponent(song);
 
     window.open(url, "_blank");
 
-    speak("Playing " + song + " on YouTube");
+    speak("Opening YouTube for " + song);
   }
-      return;
-}
+    return;
+  }
     
     // whatsapp/gallery
 if(text.includes("whatsapp")){
