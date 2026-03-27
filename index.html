@@ -2,235 +2,366 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>J.A.R.V.I.S — HUD Voice Assistant (PWA)</title>
-<meta name="theme-color" content="#00121a">
-<link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jarvis — Web Voice Assistant (Ultimate)</title>
+<link rel="manifest" href="manifest_v2.json">
+<script>
+  const video = document.getElementById("video");
+
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+  video.srcObject = stream;
+})
+.catch(err => {
+  console.log("Camera error", err);
+});
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(e => console.warn('SW register failed', e));
+  }
+  function checkFace(){
+  // DEMO MATCH (change later if needed)
+  let isOwner = true;   // 👈 yahan control hai
+
+  if(isOwner){
+    speak("Welcome Boss");
+  } else {
+    speak("Face did not match. You are not owner");
+  }
+  }
+</script>
+  
 <style>
-  :root{
-    --bg:#000606;
-    --neon:#00f0ff;
-    --accent:#00ffd6;
-    --muted:#7fb3c9;
-  }
-  html,body{height:100%;margin:0;padding:0;background:
-    radial-gradient(ellipse at center, rgba(0,20,30,0.24) 0%, rgba(0,6,12,0.86) 60%),
-    linear-gradient(180deg,#00121a 0%, #00060a 100%);
-    color:var(--neon); font-family: 'Inter', system-ui, -apple-system, 'Orbitron', sans-serif; -webkit-font-smoothing:antialiased;}
-  /* full-screen HUD container */
-  .hud-root{position:relative; min-height:100vh; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;}
-  .grid-bg{
-    position:fixed; inset:0; z-index:0;
-    background-image:
-      linear-gradient(to right, rgba(0,255,255,0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0,255,255,0.02) 1px, transparent 1px);
-    background-size: 28px 28px, 28px 28px;
-    mix-blend-mode:overlay; opacity:0.5;
-  }
-
-  /* top small widgets */
-  .top-widgets{z-index:6; position:relative; width:100%; display:flex; justify-content:space-between; padding:18px 20px; box-sizing:border-box; align-items:flex-start; pointer-events:none;}
-  .widget{ pointer-events:none; min-width:120px; padding:8px 12px; border-radius:10px; text-align:center; color:var(--neon); font-size:12px; }
-  .title{ color:var(--muted); font-size:11px; letter-spacing:0.6px; }
-  .val{ font-family: 'Orbitron'; font-weight:700; font-size:16px; margin-top:6px; color:var(--accent) }
-
-  /* center hologram area */
-  .center-area{z-index:4; width:100%; display:flex; flex-direction:column; align-items:center; padding:6vh 18px 28vh; box-sizing:border-box; pointer-events:none;}
-  .holo-wrap{position:relative; width:86vw; max-width:460px; aspect-ratio: 0.78/1; pointer-events:auto;}
-  .holo-card{position:relative; width:100%; height:100%; border-radius:20px; overflow:visible; display:flex; align-items:center; justify-content:center; transform: translateY(6%);}
-
-  .scanner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:58%; height:58%; border-radius:50%; border:2px solid rgba(0,255,255,0.12); display:flex; align-items:center; justify-content:center; pointer-events:none; box-shadow:0 10px 50px rgba(0,255,255,0.03) inset; }
-  .rings{ position:absolute; inset:0; }
-  .ring{ position:absolute; border-radius:50%; border:1px dashed rgba(0,255,255,0.14); }
-  .ring.r1{ width:100%; height:100%; }
-  .ring.r2{ width:86%; height:86%; left:7%; top:7%; transform:rotate(12deg); opacity:0.9; border-style:solid; }
-  .ring.r3{ width:68%; height:68%; left:16%; top:16%; opacity:0.6; }
-
-  .sweep { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(0deg); width:120%; height:120%; background: conic-gradient(from 60deg, rgba(0,255,255,0.12), rgba(0,255,255,0.02) 10%, transparent 40%); border-radius:50%; filter: blur(6px); animation: sweep 6s linear infinite; mix-blend-mode:screen; opacity:0.95; }
-  @keyframes sweep { to{ transform:translate(-50%,-50%) rotate(360deg); } }
-
-  .holo-center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:40%; height:40%; border-radius:50%; background: radial-gradient(circle at 30% 30%, rgba(0,255,255,0.22), rgba(0,120,140,0.06)); display:flex; align-items:center; justify-content:center; font-family: 'Orbitron'; font-size:14px; letter-spacing:2px; color:#cfffff; border:1px solid rgba(0,255,255,0.12); text-shadow: 0 2px 8px rgba(0,255,255,0.06); pointer-events:none; }
-
-  .holo-figure { position:absolute; left:50%; top:50%; transform:translate(-50%,-10%); width:62%; height:120%; background-size:contain; background-position:center bottom; background-repeat:no-repeat; opacity:0.6; mix-blend-mode:screen; -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.85) 30%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0) 100%); pointer-events:none; }
-
-  /* bottom HUD controls (hidden buttons replaced by full-screen activation overlay) */
-  .bottom-panel{z-index:6; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); width:94%; max-width:560px; display:flex; flex-direction:column; gap:12px; align-items:center; pointer-events:none;}
-  .statusText{ font-size:14px; color:var(--neon); text-shadow:0 3px 18px rgba(0,255,255,0.03); letter-spacing:0.6px; pointer-events:none; }
-  .voice-meter { width:72vw; max-width:420px; height:10px; border-radius:999px; background:rgba(255,255,255,0.02); border:1px solid rgba(0,255,255,0.03); overflow:hidden; pointer-events:none; }
-  .voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,210,200,0.6)); transition:width 80ms linear; }
-
-  /* clickable full-screen activation overlay (looks like part of HUD; not a normal button) */
-  #activationOverlay{
-    position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; background:transparent; cursor:pointer;
-    /* invisible except a subtle ring to show user where to tap */
-  }
-  #activationOverlay .tap-hint{
-    width:160px; height:160px; border-radius:50%; border:2px dashed rgba(0,255,255,0.12);
-    display:flex; align-items:center; justify-content:center; color:var(--neon); font-family:Orbitron; letter-spacing:2px; font-size:12px; text-align:center; backdrop-filter: blur(2px);
-    box-shadow:0 8px 40px rgba(0,255,255,0.02), inset 0 0 30px rgba(0,255,255,0.02);
-  }
-
-  /* overlay panels (camera, flash, lock, power, memories) */
-  .overlay{ position:fixed; inset:0; display:none; z-index:60; align-items:center; justify-content:center; }
-  .overlay.show{ display:flex; }
-  #cameraOverlay{ background: rgba(0,0,0,0.95); flex-direction:column; gap:12px; padding:18px; box-sizing:border-box; pointer-events:auto; }
-  #cameraView{ width:94%; max-width:920px; height:min(62vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.04) }
-  #cameraView video{ width:100%; height:100%; object-fit:cover; display:block; }
-
-  #flashlightOverlay{ background:#fff; display:none; align-items:center; justify-content:center; pointer-events:none; }
-
-  /* small memory panel */
-  .panel-card{ position:fixed; z-index:58; right:10px; bottom:90px; width:300px; max-width:92vw; background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.45)); padding:12px; border-radius:12px; border:1px solid rgba(0,255,255,0.06); pointer-events:auto; color:var(--neon); }
-
-  /* mobile tweaks */
-  @media(max-width:420px){
-    .holo-wrap{ width:92vw; }
-    .holo-figure{ width:70%; top:48%;}
-    .tap-hint{ width:120px; height:120px; font-size:11px; }
-    .panel-card{ width:92vw; left:4%; right:4%; bottom:88px; }
-  }
-
-  /* tiny utility */
-  .muted{ color:var(--muted); font-size:12px }
-  .hidden{ display:none !important; }
+/* ==========================
+   THEME (Jarvis) - orange/green
+   ========================== */
+:root{
+  --bg:#081018;
+  --card:#09121a;
+  --muted:#9aa6b3;
+  --accent:#ff6a00; /* orange warm accent */
+  --accent2:#22c55e; /* green secondary */
+  --glass: rgba(255,255,255,0.03);
+  --success: #22c55e;
+  --danger: #ff6a00;
+}
+html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#041018 0%, #081018 100%); color:#e6eef8}
+.wrap{max-width:1100px; margin:18px auto; padding:18px;}
+header{display:flex;align-items:center;gap:16px}
+h1{font-size:20px;margin:0}
+.subtitle{color:var(--muted); font-size:13px}
+.controls{display:flex;gap:8px; margin-top:14px; flex-wrap:wrap}
+button{background:var(--card); color:inherit;border:1px solid rgba(255,255,255,0.03); padding:10px 12px; border-radius:8px; cursor:pointer}
+button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#022; font-weight:700}
+.panel{margin-top:18px; display:grid; grid-template-columns: 1fr 420px; gap:16px}
+.card{background:var(--glass); border-radius:10px; padding:14px; box-shadow:0 6px 24px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03)}
+#left {min-height:520px}
+#right {min-height:520px}
+#transcript{min-height:160px; background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; color:#dff0d8; overflow:auto}
+#log{height:260px; overflow:auto; font-size:13px; color:var(--muted); background: rgba(255,255,255,0.01); padding:8px; border-radius:6px}
+.row{display:flex; gap:8px; align-items:center}
+label{font-size:13px;color:var(--muted)}
+input[type="text"], input[type="search"], textarea{flex:1; padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit}
+.hint{font-size:12px;color:var(--muted); margin-top:8px}
+.smallbtn{padding:6px 8px; font-size:13px}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03); color:var(--muted); font-size:13px}
+.command-list{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+.cmd{background:rgba(255,255,255,0.02); padding:8px;border-radius:6px;font-size:13px;color:var(--muted); cursor:pointer}
+footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+.kbd{background:#071827;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04); font-weight:700}
+.muted{color:var(--muted)}
+.utility-dock{max-width:1100px; margin: 12px auto 22px; padding:12px; display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+.util{ background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); color:#e6eef8; padding:12px; border-radius:12px; text-align:center; font-size:14px; cursor:pointer }
+.util small{ display:block; color:#94a3b8; font-size:12px; margin-top:4px }
+.overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9999; color: #fff; font-family: inherit; }
+#powerOverlay { background: rgba(0,0,0,0.98); flex-direction: column; gap:18px; }
+#powerSpinner { width:64px;height:64px;border-radius:50%; border:6px solid rgba(255,255,255,0.12); border-top-color:#fff; animation: spin 1s linear infinite}
+@keyframes spin { to{ transform: rotate(360deg);} }
+#cameraOverlay { background: rgba(0,0,0,0.94); color:#fff; flex-direction: column; gap:10px; }
+#cameraView { width:min(92vw,960px); height: min(70vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06) }
+#cameraView video{ width:100%; height:100%; object-fit:cover }
+.overlayTopBar{ position: fixed; top:14px; left:50%; transform: translateX(-50%); display:flex; gap:8px; align-items:center; background:rgba(255,255,255,0.04); padding:8px 12px; border:1px solid rgba(255,255,255,0.06); border-radius:999px; z-index:10000; color:#fff }
+.overlayTopBar button{ background:transparent; border:1px solid rgba(255,255,255,0.12); color:#fff; padding:8px 10px; border-radius:999px; cursor:pointer }
+#lockOverlay{ background: rgba(0,0,0,0.9); color:#fff; flex-direction:column; gap:12px; text-align:center }
+#flashlightOverlay{ background:#ffffff; display:none } /* white screen to simulate torch */
+.badge-line{ text-align:center; color:#94a3b8; font-size:12px; margin-bottom:18px }
+#boomCanvas { position: fixed; inset:0; pointer-events:none; z-index:11000; display:none }
+.hidden{ display:none !important; }
+select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:inherit; border:1px solid rgba(255,255,255,0.03) }
+.voice-meter { width:100%; height:36px; background:rgba(255,255,255,0.02); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.03) }
+.voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 120ms linear; }
+.mem-list { max-height:180px; overflow:auto; padding:6px; background: rgba(255,255,255,0.01); border-radius:8px; margin-top:8px; }
+@media (max-width:980px){ .panel{grid-template-columns:1fr} #right{order:2} }
 </style>
 </head>
 <body>
-  <div class="hud-root" id="hudRoot">
-    <div class="grid-bg" aria-hidden="true"></div>
+  <iframe id="player" width="300" height="200" allow="autoplay"></iframe>
+  <video id="video" width="250" height="200" autoplay></video>
+<br>
+<button onclick="checkFace()">Face Login</button>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Jarvis — Web Voice Assistant</h1>
+        <div class="subtitle">Speak commands or type them. Works in Chrome/Edge. No server required.</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="status" id="listenStatus">Idle</div>
+        <div style="height:6px"></div>
+        <div class="muted" style="font-size:12px">Language: <span id="langLabel">English (en-US)</span></div>
+      </div>
+    </header>
 
-    <div class="top-widgets">
-      <div class="widget">
-        <div class="title">Downlink</div>
-        <div class="val" id="downlinkVal">-- Mbps</div>
-      </div>
-      <div class="widget" style="margin-left:auto">
-        <div class="title">System Time</div>
-        <div class="val" id="sysTime">--:--:--</div>
-      </div>
+    <div class="controls">
+      <button id="btnStart" class="primary">Start Listening</button>
+      <button id="btnStop">Stop</button>
+      <button id="btnWake">Wake-word: <span id="wakeState">Off</span></button>
+      <label style="margin-left:6px;color:var(--muted)">Custom wake:</label>
+      <input id="wakeInput" type="text" placeholder="e.g. Oye Jarvis" style="width:160px"/>
+      <button id="btnSaveWake" class="smallbtn">Save</button>
+      <button id="btnToggleVoice">Toggle Voice Reply</button>
+      <button id="btnClearLog" class="smallbtn">Clear Log</button>
+      <select id="langSelect" class="verysmall">
+        <option value="en-US">English (en-US)</option>
+        <option value="hi-IN">Hindi (hi-IN)</option>
+      </select>
+      <label style="margin-left:8px;color:var(--muted)">Voice:</label>
+      <select id="voiceSelect" class="verysmall"></select>
+      <button id="btnSaveMemory" title="Save memory (e.g. remember my birthday)">💾 Save Memory</button>
+      <button id="btnShowMemory" title="Show saved memories">🗂️ Memories</button>
     </div>
 
-    <div class="center-area">
-      <div class="holo-wrap" role="main" aria-label="JARVIS HUD">
-        <div class="holo-card">
-          <div class="holo-figure" id="holoFigure" style="background-image: url('data:image/svg+xml;utf8,\
-            <svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 800%22>\
-            <rect width=%22400%22 height=%22800%22 fill=%22black%22/>\
-            <g fill=%22none%22 stroke=%22%2300ffff%22 stroke-width=%222%22 opacity=%22.9%22>\
-              <path d=%22M200 80 C180 110 170 150 160 200 C150 250 150 350 170 420 C190 490 220 560 240 640%22/>\
-              <path d=%22M220 80 C240 110 260 150 270 200 C280 250 280 340 260 420 C240 500 210 580 190 640%22/>\
-            </g></svg>')"></div>
+    <div class="panel">
+      <div id="left" class="card">
+        <h3>Say or type a command</h3>
+        <div id="transcript">Press <span class="kbd">Start Listening</span> and speak — or type below.</div>
 
-          <div class="scanner" aria-hidden="true">
-            <div class="rings">
-              <div class="ring r1"></div>
-              <div class="ring r2"></div>
-              <div class="ring r3"></div>
-            </div>
-            <div class="sweep"></div>
-            <div class="holo-center" id="jarvisLabel">J.A.R.V.I.S</div>
+        <div style="margin-top:12px" class="row">
+          <input id="cmdInput" type="text" placeholder="e.g. open youtube / what is the time / search cats" />
+          <button id="btnSend" class="smallbtn">Send</button>
+        </div>
+
+        <div class="hint">Tip: Say <b>"Hey Jarvis"</b> (or your custom wake) to activate when wake-word is ON. Try: <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds</em></div>
+
+        <div style="margin-top:12px">
+          <strong>Quick commands</strong>
+          <div class="command-list">
+            <div class="cmd" data-cmd="open youtube">open youtube</div>
+            <div class="cmd" data-cmd="open google">open google</div>
+            <div class="cmd" data-cmd="search cats">search cats</div>
+            <div class="cmd" data-cmd="time">time</div>
+            <div class="cmd" data-cmd="date">date</div>
+            <div class="cmd" data-cmd="wiki tesla">wiki tesla</div>
+            <div class="cmd" data-cmd="calculate 12 + 34">calculate 12 + 34</div>
+            <div class="cmd" data-cmd="set timer 15 seconds">set timer 15 seconds</div>
+            <div class="cmd" data-cmd="play music">play music</div>
+            <div class="cmd" data-cmd="tell me a joke">tell me a joke</div>
           </div>
-
         </div>
 
-        <div style="margin-top:28px; text-align:center;">
-          <div class="statusText" id="statusText">Jarvis offline — tap anywhere to activate microphone</div>
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
+
+        <h4>Extra features (voice shortcuts)</h4>
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+          <button class="smallbtn" id="btnWeather">Weather</button>
+          <button class="smallbtn" id="btnNews">Top News</button>
+          <button class="smallbtn" id="btnQuote">Motivate Me</button>
+          <button class="smallbtn" id="btnSpotify">Play on Spotify</button>
+          <button class="smallbtn" id="btnTranslate">Translate</button>
+          <button class="smallbtn" id="btnScreenshot">Screenshot</button>
+          <button class="smallbtn" id="btnSelfDestruct">Self-Destruct!</button>
         </div>
-      </div>
-    </div>
 
-    <div class="bottom-panel">
-      <div class="voice-meter" id="voiceMeter"><div></div></div>
-      <div style="display:flex; gap:8px; align-items:center; justify-content:center; color:var(--muted); font-size:12px; margin-top:6px;">
-        <div class="muted">Lang: <span id="langLabel">en-US</span></div>
-        <div style="width:8px"></div>
-        <div class="muted">Voice: <span id="voiceName">Default</span></div>
-      </div>
-    </div>
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
 
-    <!-- clickable activation overlay: tap anywhere once on screen to request mic permission and start listening -->
-    <div id="activationOverlay" title="Tap to activate Jarvis (microphone)">
-      <div class="tap-hint" id="tapHint">Tap to activate</div>
-    </div>
-
-    <!-- overlays -->
-    <div id="cameraOverlay" class="overlay" aria-hidden="true">
-      <div style="width:94%; max-width:920px; display:flex; justify-content:space-between; gap:8px; pointer-events:auto;">
-        <div style="display:flex; gap:8px;">
-          <div class="muted" id="camStatus">Camera</div>
+        <div style="margin-top:8px">
+          <strong>Games</strong>
+          <div class="row" style="margin-top:8px; gap:8px; flex-wrap:wrap">
+            <button id="btnRPS" class="smallbtn">Rock Paper Scissors</button>
+            <button id="btnGuess" class="smallbtn">Guess Number</button>
+          </div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <div class="muted" id="camMode">Back</div>
+
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
+
+        <h4>Voice / Mood meter</h4>
+        <div class="voice-meter" id="voiceMeter"><div></div></div>
+        <div class="hint">Jarvis listens to loudness to infer mood (basic heuristic).</div>
+
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
+
+        <h4>Face-login (optional)</h4>
+        <div class="row" style="gap:8px; align-items:center">
+          <button id="btnFaceCapture" class="smallbtn">Capture Face (Enroll)</button>
+          <button id="btnFaceLogin" class="smallbtn">Login with Face</button>
+          <div id="faceStatus" class="muted" style="margin-left:8px">No face enrolled</div>
         </div>
+        <div id="facePreview" style="margin-top:8px"></div>
+
       </div>
-      <div id="cameraView"><video id="camVideo" autoplay playsinline muted></video></div>
-    </div>
 
-    <div id="flashlightOverlay" class="overlay" aria-hidden="true">
-      <div style="width:100%; height:100%; background:#fff;"></div>
-    </div>
+      <div id="right" class="card">
+        <h3>Activity Log</h3>
+        <div id="log"></div>
 
-    <div id="memPanel" class="panel-card" aria-hidden="true" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:700; color:var(--neon)">Memories</div>
+        <h4 style="margin-top:12px">Settings</h4>
+        <div class="row" style="margin-top:6px">
+          <label>Voice reply:</label>
+          <input type="checkbox" id="chkVoice" checked />
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label>Continuous listen:</label>
+          <input type="checkbox" id="chkContinuous" />
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label>Wake-word required:</label>
+          <input type="checkbox" id="chkWakeReq" />
+        </div>
+
+        <h4 style="margin-top:12px">Memories</h4>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input id="memInput" placeholder="Note to remember" />
+          <button id="memAdd" class="smallbtn">Add</button>
+        </div>
+        <div class="mem-list" id="memList"></div>
+
+        <div style="margin-top:10px" class="muted">Supported in Chrome/Edge. Safari support is limited.</div>
       </div>
-      <div style="margin-top:8px">
-        <input id="memInput" placeholder="Speak 'remember ...' or type here then press Enter" style="width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:var(--neon)">
-      </div>
-      <div class="mem-list" id="memList" style="margin-top:8px; color:var(--neon)"></div>
     </div>
 
-    <div id="powerOverlay" class="overlay" aria-hidden="true">
-      <div style="text-align:center; color:var(--neon)"><div style="font-size:22px; letter-spacing:6px">S H U T T I N G</div><div style="margin-top:8px" id="powerText">Powering off...</div></div>
+    <div class="utility-dock">
+      <div class="util" data-cmd="power off phone">Power Off<small>voice: power off phone</small></div>
+      <div class="util" data-cmd="restart phone">Restart<small>voice: restart phone</small></div>
+      <div class="util" data-cmd="flashlight on">Flashlight On<small>torch on</small></div>
+      <div class="util" data-cmd="flashlight off">Flashlight Off</div>
+      <div class="util" data-cmd="open camera">Open Camera</div>
+      <div class="util" data-cmd="close camera">Close Camera</div>
+      <div class="util" data-cmd="open whatsapp">Open WhatsApp</div>
+      <div class="util" data-cmd="open gallery">Open Gallery</div>
+      <div class="util" data-cmd="battery status">Battery Status</div>
+      <div class="util" data-cmd="device info">Device Info</div>
+      <div class="util" data-cmd="keep screen on">Keep Screen On</div>
+      <div class="util" data-cmd="allow sleep">Allow Sleep</div>
+      <div class="util" data-cmd="vibrate">Vibrate</div>
+      <div class="util" data-cmd="lock screen">Lock Screen</div>
+      <div class="util" data-cmd="unlock screen">Unlock Screen</div>
     </div>
 
-    <!-- canvas for self-destruct -->
-    <canvas id="boomCanvas" style="position:fixed; inset:0; z-index:70; display:none; pointer-events:none;"></canvas>
+    <div class="badge-line">Extra features (weather/news/quotes/spotify/games/camera/memory/wakeword/mood/face-login) — all client-side.</div>
 
+    <footer>
+      Built for you — say hi and try commands. DEVELOPED BY RUDRANSH PANDEY (A GENIUS).  
+    </footer>
   </div>
 
-<script>
-/* JARVIS PWA HUD - Main JS
-   - Voice-first: listen & speak using Web Speech APIs
-   - Tap-once activation overlay (full-screen) to obtain mic permission (required by mobile browsers)
-   - All commands are voice-driven. UI controls are overlays only (not visible normal buttons)
-   - PWA: service worker is registered below
-*/
+  <!-- Overlays -->
+  <div id="powerOverlay" class="overlay">
+    <div id="powerSpinner"></div>
+    <div id="powerLogo" style="font-size:22px; letter-spacing:4px; opacity:0.95">S H U T T I N G &nbsp; D O W N</div>
+    <div id="restartText" style="font-size:14px; opacity:0.9"></div>
+  </div>
 
-(async function(){
-  // ---- Elements ----
-  const activationOverlay = document.getElementById('activationOverlay');
-  const tapHint = document.getElementById('tapHint');
-  const statusText = document.getElementById('statusText');
-  const sysTime = document.getElementById('sysTime');
-  const downlinkVal = document.getElementById('downlinkVal');
-  const voiceMeterFill = document.querySelector('#voiceMeter > div');
+  <div id="flashlightOverlay" class="overlay" style="display:none"></div>
+
+  <div id="lockOverlay" class="overlay">
+    <div style="font-size:28px; letter-spacing:2px">🔒 Screen Locked</div>
+    <div>Say <b>"unlock screen"</b> or press the unlock button below</div>
+    <button class="btn" id="unlockBtn" style="padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#fff; cursor:pointer">Unlock</button>
+  </div>
+
+  <div id="cameraOverlay" class="overlay">
+    <div class="overlayTopBar">
+      <button id="btnCloseCamera">Close</button>
+      <button id="btnSwitchCamera">Switch</button>
+      <button id="btnCameraSnap">Snap</button>
+    </div>
+    <div id="cameraView"><video id="camVideo" autoplay playsinline muted></video></div>
+  </div>
+
+  <canvas id="boomCanvas"></canvas>
+
+<script>
+/* ============================================================
+   Jarvis — Big single-file assistant
+   - Original commands preserved (open/search/wiki/calc/timer/music/joke)
+   - New features added: custom wake word, face-capture login (enroll), mood detector (basic), weather shortcut, translate shortcut, memories UI, improved self-destruct, better screenshot, voice meter visualization, voice selection.
+   - All client-side, no backend.
+   ============================================================ */
+(function(){
+  // Basic feature detection
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const synth = window.speechSynthesis;
+
+  // UI elements
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  const btnWake = document.getElementById('btnWake');
+  const btnToggleVoice = document.getElementById('btnToggleVoice');
+  const btnClearLog = document.getElementById('btnClearLog');
+  const langSelect = document.getElementById('langSelect');
+  const langLabel = document.getElementById('langLabel');
+  const listenStatus = document.getElementById('listenStatus');
+  const transcriptEl = document.getElementById('transcript');
+  const cmdInput = document.getElementById('cmdInput');
+  const btnSend = document.getElementById('btnSend');
+  const logEl = document.getElementById('log');
+  const chkVoice = document.getElementById('chkVoice');
+  const chkContinuous = document.getElementById('chkContinuous');
+  const wakeStateSpan = document.getElementById('wakeState');
+  const chkWakeReq = document.getElementById('chkWakeReq');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const btnSaveMemory = document.getElementById('btnSaveMemory');
+  const btnShowMemory = document.getElementById('btnShowMemory');
+  const wakeInput = document.getElementById('wakeInput');
+  const btnSaveWake = document.getElementById('btnSaveWake');
+
+  const btnWeather = document.getElementById('btnWeather');
+  const btnNews = document.getElementById('btnNews');
+  const btnQuote = document.getElementById('btnQuote');
+  const btnSpotify = document.getElementById('btnSpotify');
+  const btnTranslate = document.getElementById('btnTranslate');
+  const btnScreenshot = document.getElementById('btnScreenshot');
+  const btnSelfDestruct = document.getElementById('btnSelfDestruct');
+  const btnRPS = document.getElementById('btnRPS');
+  const btnGuess = document.getElementById('btnGuess');
+
+  const powerOverlay = document.getElementById('powerOverlay');
+  const restartText = document.getElementById('restartText');
+  const flashlightOverlay = document.getElementById('flashlightOverlay');
+  const lockOverlay = document.getElementById('lockOverlay');
+  const unlockBtn = document.getElementById('unlockBtn');
   const cameraOverlay = document.getElementById('cameraOverlay');
   const camVideo = document.getElementById('camVideo');
-  const camStatus = document.getElementById('camStatus');
-  const camMode = document.getElementById('camMode');
-  const flashlightOverlay = document.getElementById('flashlightOverlay');
-  const memPanel = document.getElementById('memPanel');
-  const memList = document.getElementById('memList');
-  const memInput = document.getElementById('memInput');
-  const powerOverlay = document.getElementById('powerOverlay');
+  const btnCloseCamera = document.getElementById('btnCloseCamera');
+  const btnSwitchCamera = document.getElementById('btnSwitchCamera');
+  const btnCameraSnap = document.getElementById('btnCameraSnap');
   const boomCanvas = document.getElementById('boomCanvas');
-  const voiceNameEl = document.getElementById('voiceName');
+  const voiceMeter = document.getElementById('voiceMeter').firstElementChild;
 
-  // ---- State ----
-  let SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const btnFaceCapture = document.getElementById('btnFaceCapture');
+  const btnFaceLogin = document.getElementById('btnFaceLogin');
+  const faceStatus = document.getElementById('faceStatus');
+  const facePreview = document.getElementById('facePreview');
+
+  const memInput = document.getElementById('memInput');
+  const memAdd = document.getElementById('memAdd');
+  const memList = document.getElementById('memList');
+
+  // State
   let recognition = null;
   let listening = false;
-  let wakeOn = false; // default off
-  let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
+  let wakeWordOn = false;
+  let lastTranscript = '';
+  let lang = 'en-US';
+  let camStream = null;
+  let usingBackCam = true;
+  let wakeRequired = false;
+  let availableVoices = [];
+  let audioContext = null;
+  let analyser = null;
+  let meterDataArray = null;
+  let meterSource = null;
   let faceDataUrl = localStorage.getItem('jarvis_face') || null;
-  let mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-  let audioCtx = null, analyser = null, meterSource = null, meterFrame = null;
-  let camStream = null, usingBackCam = true;
-  let synth = window.speechSynthesis;
-  let selectedVoiceIndex = parseInt(localStorage.getItem('jarvis_voice_index')||0,10) || 0;
-  let chkVoiceReply = true;
+  let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
 
   // small datasets
   const jokes = [
@@ -244,485 +375,1113 @@
     "You don't have to be great to start, but you have to start to be great."
   ];
 
-  // ---- Helpers ----
-  function setStatus(s){ statusText.textContent = s; console.log('[JARVIS] ' + s); }
-  function speak(text, opts={}) {
-    if(!chkVoiceReply) return;
-    if(!synth) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = opts.lang || 'en-US';
-    u.rate = opts.rate || 1;
-    u.pitch = opts.pitch || 1;
-    const voices = synth.getVoices();
-    if(voices && voices.length && voices[selectedVoiceIndex]) {
-      u.voice = voices[selectedVoiceIndex];
-      voiceNameEl.textContent = voices[selectedVoiceIndex].name;
-    }
-    synth.cancel();
-    synth.speak(u);
+  // Logging helper
+  function log(message, type='info'){
+    const time = new Date().toLocaleTimeString();
+    const el = document.createElement('div');
+    el.innerHTML = `<strong style="color:${type==='err'?'#ff9b8a':'#9ae6b4'}">${time}</strong> — <span style="color:${type==='err'?'#ffb3b3':'#cfe8ff'}">${escapeHtml(message)}</span>`;
+    logEl.prepend(el);
   }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
 
-  // update time and network periodically
-  function updateTime(){
-    const now = new Date();
-    sysTime.textContent = now.toLocaleTimeString();
-  }
-  updateTime();
-  setInterval(updateTime,1000);
-
-  function updateNetwork(){
-    try{
-      if(navigator.connection && navigator.connection.downlink) downlinkVal.textContent = (navigator.connection.downlink.toFixed?navigator.connection.downlink.toFixed(1):navigator.connection.downlink) + ' Mbps';
-      else downlinkVal.textContent = '-- Mbps';
-    }catch(e){ downlinkVal.textContent = '-- Mbps'; }
-  }
-  updateNetwork(); setInterval(updateNetwork,7000);
-
-  // populate speech synthesis voices
+  // Speak helper with voice selection
   function populateVoices(){
-    if(!synth) return;
-    const vs = synth.getVoices();
-    if(vs && vs[selectedVoiceIndex]) voiceNameEl.textContent = vs[selectedVoiceIndex].name;
+    availableVoices = synth.getVoices() || [];
+    voiceSelect.innerHTML = '';
+    availableVoices.forEach((v, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${v.name} — ${v.lang} ${v.default ? '(default)' : ''}`;
+      voiceSelect.appendChild(opt);
+    });
+    // select previous if stored
+    const stored = localStorage.getItem('jarvis_voice_index');
+    if(stored && availableVoices[stored]) voiceSelect.value = stored;
   }
-  populateVoices();
-  if(typeof speechSynthesis !== 'undefined') speechSynthesis.onvoiceschanged = populateVoices;
-
-  // ---- Voice Meter (WebAudio) ----
-  async function startVoiceMeter(){
-    try{
-      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const s = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
-      meterSource = audioCtx.createMediaStreamSource(s);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      meterSource.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      function frame(){
-        analyser.getByteFrequencyData(data);
-        let sum = 0;
-        for(let i=0;i<data.length;i++) sum += data[i];
-        const avg = sum / data.length;
-        const pct = Math.min(100, Math.round((avg/255)*100));
-        voiceMeterFill.style.width = pct + '%';
-        meterFrame = requestAnimationFrame(frame);
-      }
-      frame();
-    }catch(e){ console.warn('VoiceMeter error', e); }
-  }
-  function stopVoiceMeter(){
-    if(meterFrame){ cancelAnimationFrame(meterFrame); meterFrame = null; }
-    if(meterSource && meterSource.mediaStream){
-      meterSource.mediaStream.getTracks().forEach(t=>t.stop());
-      meterSource.disconnect && meterSource.disconnect();
+  if(synth) {
+    populateVoices();
+    if(typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = populateVoices;
     }
-    analyser = null; voiceMeterFill.style.width = '0%';
+  }
+  function speak(text, opts = {}){
+    if(!chkVoice.checked) return;
+    if(!synth) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = opts.lang || lang;
+      u.rate = opts.rate || 1.0;
+      u.pitch = opts.pitch || 1.0;
+      if(voiceSelect.value && availableVoices[voiceSelect.value]) u.voice = availableVoices[voiceSelect.value];
+      synth.cancel(); // stop previous
+      synth.speak(u);
+      log('Jarvis: ' + text);
+    } catch (e) {
+      console.error('synth error', e);
+    }
   }
 
-  // ---- Recognition setup ----
+  // Recognition setup (keeps original behavior)
   function setupRecognition(){
-    if(!SpeechRecognition){ setStatus('SpeechRecognition not supported — use Chrome/Edge'); return; }
-    recognition && recognition.abort && recognition.abort();
+    if(!SpeechRecognition) {
+      listenStatus.textContent = 'SpeechRecognition not supported';
+      btnStart.disabled = true; btnStop.disabled = true;
+      return;
+    }
     recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    recognition.lang = lang;
     recognition.interimResults = false;
-    recognition.continuous = true;
+    recognition.continuous = chkContinuous.checked;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = ()=> {
+    recognition.onstart = () => {
       listening = true;
-      setStatus('Listening...');
+      listenStatus.textContent = 'Listening...';
+      btnStart.textContent = 'Listening';
+      log('Voice recognition started');
+      // start mic meter
       startVoiceMeter();
     };
-    recognition.onend = ()=> {
+
+    recognition.onend = () => {
       listening = false;
-      setStatus('Idle (tap to reactivate)');
+      listenStatus.textContent = 'Idle';
+      btnStart.textContent = 'Start Listening';
+      log('Voice recognition stopped', 'info');
       stopVoiceMeter();
-      // do not auto-restart forever in background
+      if(chkContinuous.checked && recognition){
+        setTimeout(()=> { try{ recognition.start() } catch(e){} }, 250);
+      }
     };
+
     recognition.onerror = (ev) => {
-      setStatus('Speech error: ' + (ev.error || 'unknown'));
+      log('Speech error: ' + ev.error, 'err');
       stopVoiceMeter();
     };
+
     recognition.onresult = (ev) => {
-      const res = ev.results[ev.results.length-1][0].transcript.trim();
-      setStatus('Heard: ' + res);
-      handleSpoken(res);
+      const res = ev.results[ev.results.length - 1][0].transcript.trim();
+      lastTranscript = res;
+      addTranscriptEntry('User: ' + res);
+      log('Heard: ' + res);
+      // special wake behavior: if wake required or custom set, use it
+      const lw = res.toLowerCase();
+      const wakeNormalized = customWake ? customWake.toLowerCase() : 'hey jarvis';
+      if(chkWakeReq.checked){
+        if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
+          const stripped = lw.replace(/^.*?(hey jarvis|ok jarvis|"+wakeNormalized+")[, ]*/,'').trim();
+          const command = stripped ? stripped : '';
+          if(command) handleCommand(command);
+          else { speak('Yes?'); }
+          return;
+        } else {
+          log('Ignored — wake-word required', 'info');
+          return;
+        }
+      } else {
+        if(wakeWordOn){
+          if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
+            // Strip wake phrase and handle remainder
+            let cmd = lw;
+            // Try to remove either the custom wake or common variants
+            if(customWake) cmd = cmd.replace(new RegExp(customWake, 'i'),'').trim();
+            cmd = cmd.replace(/^.*?(hey jarvis|ok jarvis)[, ]*/i,'').trim();
+            if(cmd) handleCommand(cmd);
+            else { speak('Yes?'); }
+            return;
+          }
+        }
+        handleCommand(res);
+      }
     };
   }
 
-  // ---- Activation overlay (user gesture) ----
-  // Single-tap anywhere to request mic permission and start recognition.
-  async function activateJarvis(){
-    activationOverlay.style.display = 'none';
-    setStatus('Activating microphone...');
+  // Main command handler (keeps original behavior + extras)
+  async function handleCommand(textRaw){
+    const text = textRaw.trim();
+    if(!text) return;
+    // show in UI
+    addTranscriptEntry('User: ' + text);
+    const lower = text.toLowerCase();
+
+    // small talk
+    if(/^(hi|hello|hey|hey jarvis|ok jarvis)\b/.test(lower)){
+      speak('Hello. How can I help?');
+      addTranscriptEntry('Jarvis: greeting');
+      return;
+    }
+
+    // time/date
+    if(lower.includes('time')) {
+      const now = new Date();
+      const out = `It is ${now.toLocaleTimeString()}`;
+      speak(out);
+      addTranscriptEntry('Jarvis: ' + out);
+      return;
+    }
+    if(lower.includes('date')) {
+      const now = new Date();
+      const out = `Today is ${now.toLocaleDateString()}`;
+      speak(out);
+      addTranscriptEntry('Jarvis: ' + out);
+      return;
+    }
+
+    // open website
+    if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify|maps)\b/)) {
+      let site = 'https://google.com';
+      if(lower.includes('youtube')) site = 'https://youtube.com';
+      else if(lower.includes('wikipedia')) site = 'https://wikipedia.org';
+      else if(lower.includes('github')) site = 'https://github.com';
+      else if(lower.includes('spotify')) site = 'https://open.spotify.com';
+      else if(lower.includes('maps')) site = 'https://maps.google.com';
+      speak('Opening ' + site.replace(/^https?:\/\//,''));
+      window.open(site, '_blank');
+      addTranscriptEntry('Jarvis: opening ' + site);
+      return;
+    }
+
+    // search
+    if(lower.startsWith('search ') || lower.startsWith('google ')) {
+      const q = text.replace(/^(search|google)\s+/i,'').trim();
+      if(!q){ speak('What do you want me to search?'); return; }
+      speak('Searching Google for ' + q);
+      const url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+      window.open(url, '_blank');
+      addTranscriptEntry('Jarvis: searched for ' + q);
+      return;
+    }
+
+    // wiki
+    if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')) {
+      const term = text.replace(/^(wiki|wikipedia)\s+/i,'').trim();
+      if(!term){ speak('What do you want from Wikipedia?'); return; }
+      speak('Searching Wikipedia for ' + term);
+      addTranscriptEntry('Jarvis: fetching wikipedia for ' + term);
+      try {
+        const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term);
+        const r = await fetch(api);
+        if(!r.ok) { speak('No Wikipedia page found for ' + term); return; }
+        const j = await r.json();
+        const extract = j.extract ? j.extract.split('. ').slice(0,2).join('. ') + '.' : 'No summary available.';
+        speak(extract);
+        addTranscriptEntry('Wiki: ' + extract);
+      } catch (e) {
+        speak('Failed to fetch Wikipedia.');
+        addTranscriptEntry('Wiki error: ' + e.message, 'err');
+      }
+      return;
+    }
+
+    // calculate
+    if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9\+\-\*\/\. ]+$/.test(lower)) {
+      const expr = text.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
+      if(!expr){ speak('I could not parse the expression'); return; }
+      try {
+        const val = Function('"use strict";return (' + expr + ')')();
+        speak('The result is ' + val);
+        addTranscriptEntry('Calc: ' + expr + ' = ' + val);
+      } catch (e) {
+        speak('Sorry, cannot calculate that.');
+        addTranscriptEntry('Calc error: ' + e.message, 'err');
+      }
+      return;
+    }
+
+    // timer / reminder
+    if(lower.startsWith('set timer') || lower.startsWith('timer ')) {
+      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|secs|mins)?/);
+      if(!m){ speak('Please tell me the time in seconds or minutes'); return; }
+      let num = parseInt(m[1],10);
+      let unit = (m[2]||'seconds').toLowerCase();
+      let ms = (unit.startsWith('min')) ? num * 60 * 1000 : num * 1000;
+      speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
+      addTranscriptEntry('Timer: ' + num + ' ' + unit);
+      setTimeout(()=>{
+        speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
+        alert('Timer finished: ' + num + ' ' + unit);
+      }, ms);
+      return;
+    }
+
+    // play music -> spotify or youtube
+    if(lower.includes('play music') || lower.includes('play song') || lower.includes('play spotify')) {
+      speak('Opening Spotify playlist');
+      window.open('https://open.spotify.com', '_blank');
+      return;
+    }
+
+    // jokes
+    if(lower.includes('joke')) {
+      const j = jokes[Math.floor(Math.random()*jokes.length)];
+      speak(j);
+      addTranscriptEntry('Joke: ' + j);
+      return;
+    }
+
+    // motivational quote
+    if(lower.includes('motivate') || lower.includes('motivation') || lower.includes('quote')) {
+      const q = quotes[Math.floor(Math.random()*quotes.length)];
+      speak(q);
+      addTranscriptEntry('Quote: ' + q);
+      return;
+    }
+
+    // weather quick (uses wttr.in)
+    if(lower.includes('weather')) {
+      const m = lower.match(/weather in ([a-zA-Z\s]+)/);
+      const q = m ? m[1].trim() : '';
+      if(q) {
+        speak('Opening weather for ' + q);
+        window.open('https://wttr.in/' + encodeURIComponent(q), '_blank');
+      } else {
+        speak('Opening weather report');
+        window.open('https://wttr.in/?format=3', '_blank');
+      }
+      return;
+    }
+
+    // translate -> google translate
+    if(lower.startsWith('translate ')) {
+      const m = text.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i);
+      if(m){
+        const phrase = m[1]; const target = m[2];
+        speak('Translating to ' + target);
+        window.open('https://translate.google.com/?sl=auto&tl='+encodeURIComponent(target)+'&text='+encodeURIComponent(phrase)+'&op=translate', '_blank');
+        return;
+      } else {
+        speak('Opening Google Translate');
+        window.open('https://translate.google.com', '_blank');
+        return;
+      }
+    }
+
+    // memory: remember / recall
+    if(lower.startsWith('remember ')){
+      const mem = text.replace(/^remember\s+/i,'').trim();
+      if(mem){
+        const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+        mems.push({text:mem, time: Date.now()});
+        localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+        speak('Done. I will remember: ' + mem);
+        addTranscriptEntry('Memory saved: ' + mem);
+        renderMemories();
+      } else speak('What should I remember?');
+      return;
+    }
+    if(lower.includes('what do you remember') || lower.includes('list memories') || lower.includes('what did i ask you to remember')){
+      const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+      if(mems.length===0){ speak('You have no saved memories.'); return; }
+      speak('You asked me to remember '+ mems.length + ' items. I will show them now.');
+      renderMemories(true);
+      return;
+    }
+
+    // screenshot
+    if(lower.includes('screenshot') || lower.includes('screen shot') || lower.includes('capture screen')){
+      takeScreenshot();
+      return;
+    }
+
+    // power actions (simulated)
+    if(lower.includes('power off') || lower.includes('shutdown')){
+      powerOffAnimation();
+      return;
+    }
+    if(lower.includes('restart')){
+      restartAnimation();
+      return;
+    }
+
+    // flashlight
+    if(lower.includes('flashlight on') || lower.includes('torch on')){
+      flashlight(true);
+      return;
+    }
+    if(lower.includes('flashlight off') || lower.includes('torch off')){
+      flashlight(false);
+      return;
+    }
+
+    // camera
+    if(lower.includes('open camera') || lower.includes('show camera')){
+      openCamera();
+      return;
+    }
+    if(lower.includes('close camera') || lower.includes('hide camera')){
+      closeCamera();
+      return;
+    }
+    if(text.includes("play")){
+  
+  let song = text.replace("play", "").trim();
+
+  if(song === ""){
+    speak("Tell me song name");
+  } else {
+
+    player.src = 
+    "https://www.youtube.com/embed?listType=search&list=" 
+    + encodeURIComponent(song) + "&autoplay=1";
+
+    isPlaying = true;
+    speak("Playing " + song);
+  }
+      return;
+    }
+    if(text.includes("pause")){
+  player.src = "";
+  isPlaying = false;
+  speak("Music paused");
+      return;
+    }
+if(text.includes("next")){
+  if(player.src !== ""){
+    player.src = player.src; // reload = next video
+    speak("Playing next song");
+  }
+  return;
+}
+    if(text.includes("stop")){
+  player.src = "";
+  isPlaying = false;
+  speak("Music stopped");
+      return;
+    }
+    if(text.includes("volume up")){
+  speak("Volume increased");
+      return;
+}
+
+if(text.includes("volume down")){
+  speak("Volume decreased");
+  return;
+}
+    
+    // whatsapp/gallery
+if(text.includes("whatsapp")){
+  window.open("https://web.whatsapp.com", "_blank");
+  speak("Opening WhatsApp");
+
+      return;
+    }
+    if(lower.includes('gallery')){
+      openGallery();
+      return;
+    }
+
+    // keep screen on
+    if(lower.includes('keep screen on') || lower.includes('stay awake')){
+      keepScreenOn();
+      return;
+    }
+    if(lower.includes('allow sleep') || lower.includes('allow to sleep')){
+      allowSleep();
+      return;
+    }
+
+    // vibrate
+    if(lower.includes('vibrate')){
+      vibrate();
+      return;
+    }
+
+    // lock/unlock
+    if(lower.includes('lock screen')){
+      lockScreen();
+      return;
+    }
+    if(lower.includes('unlock screen')){
+      unlockScreen();
+      return;
+    }
+
+    // news
+    if(lower.includes('news') || lower.includes('top news')){
+      openNews();
+      return;
+    }
+
+    // spotify
+    if(text.includes("spotify")){
+  
+  // song name extract karo
+  let song = text.replace("play", "")
+                 .replace("on spotify", "")
+                 .replace("spotify", "")
+                 .trim();
+
+  if(song === ""){
+    speak("Please tell song name");
+  } else {
+    let url = "https://open.spotify.com/search/" + encodeURIComponent(song);
+    
+    window.open(url, "_blank");
+    speak("Playing " + song + " on Spotify");
+  }
+    
+      return;
+    }
+    if(text.includes("play")){
+  
+  let song = text.replace("play", "").trim();
+
+  if(song === ""){
+    speak("Please tell song name");
+  } else {
+
+    let url = "https://www.youtube.com/embed?listType=search&list=" 
+              + encodeURIComponent(song) + "&autoplay=1";
+
+    window.open(url, "_blank");
+
+    speak("Playing " + song);
+  }
+
+      return;
+    }
+
+    // physics wallah (special)
+    if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
+      speak("Opening Physics Wallah");
+      try{ window.location.href = "intent://#Intent;package=in.eduwall.pwclassroom;scheme=pw;end"; }catch(_){}
+      setTimeout(()=> window.open("https://www.pw.live/", "_blank"), 800);
+      return;
+    }
+
+    // fallback: ask to search
+    speak('I did not understand. Do you want me to search the web for ' + text + '?');
+    if(confirm('Search web for "' + text + '"?')) {
+      window.open('https://www.google.com/search?q=' + encodeURIComponent(text), '_blank');
+    }
+  }
+
+  // Transcript helper
+  function addTranscriptEntry(txt, type='sys'){
+    const p = document.createElement('div');
+    p.style.marginTop = '8px';
+    p.style.fontSize = '14px';
+    p.style.color = (type==='err' ? '#ffb3b3' : '#dbeafe');
+    p.textContent = txt;
+    transcriptEl.appendChild(p);
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+  // Controls events
+  btnStart.addEventListener('click', () => {
+    if(!recognition) setupRecognition();
+    if(recognition && !listening){
+      try { recognition.start(); } catch(e){ console.warn(e); }
+    }
+  });
+  btnStop.addEventListener('click', stopListening);
+
+  btnWake.addEventListener('click', ()=> {
+    wakeWordOn = !wakeWordOn;
+    wakeStateSpan.textContent = wakeWordOn ? 'On' : 'Off';
+    log('Wake-word announce ' + (wakeWordOn ? 'enabled' : 'disabled'));
+  });
+
+  btnToggleVoice.addEventListener('click', ()=> {
+    chkVoice.checked = !chkVoice.checked;
+    log('Voice reply ' + (chkVoice.checked ? 'enabled' : 'disabled'));
+  });
+
+  btnClearLog.addEventListener('click', ()=> { logEl.innerHTML=''; transcriptEl.innerHTML=''; });
+
+  chkContinuous.addEventListener('change', ()=>{
+    if(recognition){
+      recognition.stop();
+      recognition = null;
+      setupRecognition();
+    }
+    log('Continuous: ' + chkContinuous.checked);
+  });
+
+  langSelect.addEventListener('change', ()=> {
+    lang = langSelect.value;
+    langLabel.textContent = (lang==='hi-IN' ? 'Hindi (hi-IN)' : 'English (en-US)');
+    if(recognition){
+      recognition.lang = lang;
+    }
+    log('Language set to ' + lang);
+  });
+
+  voiceSelect.addEventListener('change', ()=> {
+    localStorage.setItem('jarvis_voice_index', voiceSelect.value);
+  });
+
+  btnSend.addEventListener('click', ()=> {
+    const text = cmdInput.value.trim();
+    if(!text) return;
+    // first run extra handlers (add-ons) — they can intercept
+    if(!handleExtraCommand(text)) handleCommand(text);
+    cmdInput.value='';
+  });
+
+  cmdInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') btnSend.click(); });
+
+  function stopListening(){
+    if(recognition){
+      try { recognition.stop(); } catch(e){}
+      listening = false;
+      listenStatus.textContent = 'Idle';
+      log('Stopped listening');
+    }
+    stopVoiceMeter();
+  }
+
+  // initial setup
+  function init(){
+    transcriptEl.textContent = 'Press Start Listening and speak. You can also type commands below.';
+    lang = langSelect.value;
+    if(!customWake) customWake = 'hey jarvis';
+    wakeInput.value = customWake;
+    if(faceDataUrl) {
+      faceStatus.textContent = 'Face enrolled';
+      renderFacePreview(faceDataUrl);
+    }
+    populateVoices();
+    renderMemories();
+    setupRecognition();
+    log('Jarvis ready (enhanced)');
+    document.querySelectorAll('.cmd').forEach(c=>{
+      c.addEventListener('click', ()=> { const cmd = c.getAttribute('data-cmd'); if(!handleExtraCommand(cmd)) handleCommand(cmd); });
+    });
+  }
+
+  init();
+
+  // ========================
+  // Extra feature functions
+  // ========================
+
+  // Utility dock click -> command
+  document.querySelectorAll('.util').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const c = card.getAttribute('data-cmd');
+      if(!handleExtraCommand(c)) handleCommand(c);
+    });
+  });
+
+  // Buttons
+  btnWeather.addEventListener('click', ()=> { handleExtraCommand('weather'); });
+  btnNews.addEventListener('click', ()=> { handleExtraCommand('news'); });
+  btnQuote.addEventListener('click', ()=> { handleExtraCommand('motivate'); });
+  btnSpotify.addEventListener('click', ()=> { handleExtraCommand('play spotify'); });
+  btnTranslate.addEventListener('click', ()=> {
+    const phrase = prompt('Phrase to translate (will open Google Translate):');
+    if(phrase) window.open('https://translate.google.com/?sl=auto&tl=en&text=' + encodeURIComponent(phrase) + '&op=translate', '_blank');
+  });
+  btnScreenshot.addEventListener('click', takeScreenshot);
+  btnSelfDestruct.addEventListener('click', ()=> { runSelfDestruct(); });
+
+  btnRPS.addEventListener('click', ()=> { playRPS(); });
+  btnGuess.addEventListener('click', ()=> { playGuess(); });
+
+  btnSaveMemory.addEventListener('click', ()=>{
+    const txt = prompt('What should I remember?');
+    if(txt){
+      const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+      mems.push({text:txt, time: Date.now()});
+      localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+      speak('Saved that memory.');
+      log('Memory saved: ' + txt);
+      renderMemories();
+    }
+  });
+  btnShowMemory.addEventListener('click', showMemories);
+
+  memAdd.addEventListener('click', ()=>{
+    const t = memInput.value.trim();
+    if(!t) return;
+    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+    mems.push({text:t, time: Date.now()});
+    localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+    memInput.value='';
+    renderMemories();
+    speak('Memory added.');
+  });
+
+  btnSaveWake.addEventListener('click', ()=>{
+    const w = wakeInput.value.trim();
+    if(!w) return alert('Enter wake phrase');
+    customWake = w;
+    localStorage.setItem('jarvis_wake', w);
+    speak('Custom wake phrase saved as ' + w);
+    log('Custom wake phrase: ' + w);
+  });
+
+  // Face capture (enroll simple snapshot)
+  btnFaceCapture.addEventListener('click', async ()=>{
     try{
-      // request microphone permission via getUserMedia to allow startRecognition reliably on mobile
-      await navigator.mediaDevices.getUserMedia({ audio:true }).then(s => {
-        // immediately stop to let SpeechRecognition control mic
-        s.getTracks().forEach(t=>t.stop());
-      }).catch(e => {
-        console.warn('mic getUserMedia issue', e);
-      });
-
-      // setup and start recognition
-      if(!recognition) setupRecognition();
-      try{ recognition.start(); }catch(e){ console.warn('recognition start', e); }
-      speak('Jarvis online. Listening.');
-      setStatus('Jarvis online. Speak any command.');
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Camera not supported');
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
+      const v = document.createElement('video');
+      v.style.display = 'none';
+      v.srcObject = s;
+      document.body.appendChild(v);
+      await v.play();
+      await new Promise(r=>setTimeout(r,500));
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth || 320;
+      c.height = v.videoHeight || 240;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(v,0,0,c.width,c.height);
+      const data = c.toDataURL('image/png');
+      localStorage.setItem('jarvis_face', data);
+      faceDataUrl = data;
+      renderFacePreview(data);
+      faceStatus.textContent = 'Face enrolled';
+      speak('Face captured and enrolled.');
+      // stop tracks
+      s.getTracks().forEach(t=>t.stop());
+      v.remove();
     }catch(e){
-      setStatus('Microphone permission required.');
-      activationOverlay.style.display = 'flex';
-      alert('Please allow microphone to use Jarvis.');
+      alert('Face capture failed: ' + e.message);
+      log('Face capture error: ' + e.message, 'err');
     }
-  }
-  activationOverlay.addEventListener('click', activateJarvis);
+  });
 
-  // ---- Camera ----
-  async function openCamera(back=true){
+  // Face login (very simple compare by pixel diff)
+  btnFaceLogin.addEventListener('click', async ()=>{
+    if(!faceDataUrl) return alert('No face enrolled. Capture first.');
     try{
-      cameraOverlay.classList.add('show');
-      cameraOverlay.style.display = 'flex';
-      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-      const constraint = { video:{ facingMode: back ? { ideal: 'environment' } : 'user' }, audio:false };
-      camStream = await navigator.mediaDevices.getUserMedia(constraint);
-      camVideo.srcObject = camStream;
-      await camVideo.play();
-      camStatus.textContent = 'Camera open';
-      camMode.textContent = back ? 'Back' : 'Front';
-      setStatus('Camera opened');
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
+      const v = document.createElement('video');
+      v.style.display = 'none';
+      v.srcObject = s;
+      document.body.appendChild(v);
+      await v.play();
+      await new Promise(r=>setTimeout(r,500));
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth || 320;
+      c.height = v.videoHeight || 240;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(v,0,0,c.width,c.height);
+      const current = c.toDataURL('image/png');
+      s.getTracks().forEach(t=>t.stop());
+      v.remove();
+      // compare simple: create image elements and compare data lengths / naive pixel comparison
+      const diff = await computeImageDiff(faceDataUrl, current);
+      if(diff < 0.12){ // threshold low -> very close
+        speak('Face matched. Welcome back.');
+        log('Face login successful (diff ' + diff.toFixed(3) + ')');
+        document.body.style.border = '6px solid rgba(34,197,94,0.25)';
+        setTimeout(()=> document.body.style.border = '', 2500);
+      } else {
+        speak('Face did not match.');
+        log('Face login failed (diff ' + diff.toFixed(3) + ')', 'err');
+        alert('Face did not match. Try enrolling again.');
+      }
     }catch(e){
-      setStatus('Camera error: ' + e.message);
-      alert('Camera error or permission denied.');
+      alert('Face login failed: ' + e.message);
     }
-  }
-  function closeCamera(){
-    cameraOverlay.classList.remove('show'); cameraOverlay.style.display = 'none';
-    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-    if(camVideo) { camVideo.pause(); camVideo.srcObject = null; }
-    setStatus('Camera closed');
-  }
-  // camera overlay closes when user taps outside video
-  cameraOverlay.addEventListener('click', (e)=>{ if(e.target === cameraOverlay) closeCamera(); });
+  });
 
-  async function takeCameraSnap(){
-    if(!camStream) return;
-    const v = camVideo;
-    const c = document.createElement('canvas');
-    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-    const url = c.toDataURL('image/png');
-    const a = document.createElement('a'); a.href = url; a.download = 'jarvis-snap.png'; a.click();
-    speak('Snapshot saved');
-    setStatus('Snapshot taken');
+  function renderFacePreview(data){
+    facePreview.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = data;
+    img.style.maxWidth = '120px';
+    img.style.borderRadius = '8px';
+    facePreview.appendChild(img);
   }
 
-  // ---- Flashlight (simulate via white overlay) ----
-  let flashOn = false;
-  function flashlight(on){
-    flashOn = !!on;
-    if(flashOn){
-      flashlightOverlay.classList.add('show'); flashlightOverlay.style.display = 'flex';
-      setStatus('Flashlight on');
-    } else {
-      flashlightOverlay.classList.remove('show'); flashlightOverlay.style.display = 'none';
-      setStatus('Flashlight off');
+  // compute naive difference between two base64 png images by drawing and comparing pixel data (normalized)
+  async function computeImageDiff(aDataUrl, bDataUrl){
+    function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
+    const [ia, ib] = await Promise.all([loadImage(aDataUrl), loadImage(bDataUrl)]);
+    const w = Math.min(ia.width, ib.width, 160);
+    const h = Math.min(ia.height, ib.height, 120);
+    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta = ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
+    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb = cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
+    const da = cta.getImageData(0,0,w,h).data;
+    const db = ctb.getImageData(0,0,w,h).data;
+    let sum=0; let len=0;
+    for(let i=0;i<da.length;i+=4){
+      // compare luminance
+      const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2];
+      const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2];
+      sum += Math.abs(la-lb);
+      len++;
     }
+    const avg = sum / (len*255);
+    return avg; // 0..1 (lower is better)
   }
 
-  // ---- Memories ----
+  // MEMORIES rendering
   function renderMemories(){
+    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
     memList.innerHTML = '';
-    if(!mems.length){ memList.textContent = 'No memories saved'; return; }
-    mems.slice().reverse().forEach((m, i) => {
-      const idx = mems.length - 1 - i;
+    if(mems.length===0){ memList.textContent = 'No memories saved'; return; }
+    mems.slice().reverse().forEach((m,i)=>{
       const d = document.createElement('div');
-      d.style.padding = '8px';
-      d.style.borderBottom = '1px dashed rgba(255,255,255,0.03)';
-      d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="margin-top:8px"><button data-i="${idx}" data-action="del" style="background:none;border:1px solid rgba(0,255,255,0.06);border-radius:8px;padding:6px;color:var(--neon)">Delete</button></div>`;
+      d.style.padding = '6px'; d.style.borderBottom = '1px dashed rgba(255,255,255,0.03)';
+      d.innerHTML = `<strong style="color:#9ae6b4">${new Date(m.time).toLocaleString()}</strong><div style="margin-top:4px">${escapeHtml(m.text)}</div><div style="margin-top:6px"><button data-i="${mems.length-1-i}" class="mem-del smallbtn">Delete</button></div>`;
       memList.appendChild(d);
     });
-    memList.querySelectorAll('button[data-action="del"]').forEach(b => {
-      b.addEventListener('click', ()=> {
-        const idx = parseInt(b.getAttribute('data-i'),10);
-        mems.splice(idx,1);
-        localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+    memList.querySelectorAll('.mem-del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.getAttribute('data-i'),10);
+        const mm = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+        mm.splice(idx,1);
+        localStorage.setItem('jarvis_mems', JSON.stringify(mm));
         renderMemories();
         speak('Memory deleted');
       });
     });
   }
-  memInput.addEventListener('keydown', e => {
-    if(e.key === 'Enter'){
-      const t = memInput.value.trim(); if(!t) return;
-      mems.push({ text: t, time: Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-      memInput.value = ''; renderMemories(); speak('Memory saved');
+  function showMemories(){ renderMemories(); alert('Memories shown on the right panel.'); }
+
+  // CAMERA & flashlight
+  async function openCamera(){
+    try{
+      cameraOverlay.style.display='flex';
+      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: usingBackCam ? {ideal:'environment'} : 'user' },
+        audio: false
+      });
+      camVideo.srcObject = camStream;
+      log('Camera opened');
+    }catch(e){
+      log('Camera error: ' + e.message, 'err');
+      alert('Camera permission or device error.');
     }
+  }
+  function closeCamera(){
+    cameraOverlay.style.display='none';
+    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    log('Camera closed');
+  }
+  btnCloseCamera.addEventListener('click', closeCamera);
+  btnSwitchCamera.addEventListener('click', async ()=>{
+    usingBackCam = !usingBackCam;
+    await openCamera();
+  });
+  btnCameraSnap.addEventListener('click', ()=>{
+    if(!camStream) return;
+    const v = camVideo;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+    const url = c.toDataURL('image/png');
+    const a = document.createElement('a'); a.href = url; a.download='cam-snap.png'; a.click();
+    log('Camera snapshot taken');
+    speak('Snapshot saved');
   });
 
-  // ---- Face enroll/login (naive pixel diff) ----
-  async function captureFaceEnroll(){
-    try{
-      const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-      const v = document.createElement('video'); v.srcObject = s; await v.play();
-      await new Promise(r => setTimeout(r,500));
-      const c = document.createElement('canvas'); c.width = v.videoWidth || 320; c.height = v.videoHeight || 240;
-      c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-      const data = c.toDataURL('image/png');
-      localStorage.setItem('jarvis_face', data);
-      faceDataUrl = data;
-      s.getTracks().forEach(t=>t.stop());
-      v.remove();
-      speak('Face captured and enrolled');
-      setStatus('Face enrolled');
-    }catch(e){ setStatus('Face enroll failed: ' + e.message); }
-  }
-  async function faceLogin(){
-    if(!faceDataUrl){ speak('No face enrolled'); return; }
-    try{
-      const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-      const v = document.createElement('video'); v.srcObject = s; await v.play();
-      await new Promise(r => setTimeout(r,500));
-      const c = document.createElement('canvas'); c.width = v.videoWidth || 320; c.height = v.videoHeight || 240;
-      c.getContext('2d').drawImage(v,0,0,c.width,c.height); const current = c.toDataURL('image/png');
-      s.getTracks().forEach(t=>t.stop()); v.remove();
-      const diff = await computeImageDiff(faceDataUrl, current);
-      if(diff < 0.12){ speak('Face matched. Welcome back.'); setStatus('Face login success'); }
-      else { speak('Face not matched'); setStatus('Face login failure'); }
-    }catch(e){ setStatus('Face login error: ' + e.message); }
-  }
-  async function computeImageDiff(aDataUrl, bDataUrl){
-    function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
-    const [ia, ib] = await Promise.all([loadImage(aDataUrl), loadImage(bDataUrl)]);
-    const w = Math.min(ia.width, ib.width, 160); const h = Math.min(ia.height, ib.height, 120);
-    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta=ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
-    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb=cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
-    const da = cta.getImageData(0,0,w,h).data; const db = ctb.getImageData(0,0,w,h).data;
-    let sum=0, len=0;
-    for(let i=0;i<da.length;i+=4){ const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2]; const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2]; sum += Math.abs(la-lb); len++; }
-    const avg = sum / (len*255); return avg;
+  function flashlight(on){
+    flashlightOverlay.style.display = on ? 'flex' : 'none';
+    if(on) flashlightOverlay.style.background = '#ffffff';
+    else flashlightOverlay.style.background = 'transparent';
+    log('Flashlight ' + (on ? 'on' : 'off'));
   }
 
-  // ---- Self-destruct animation (canvas) ----
+  // battery status
+  async function batteryStatus(){
+    try{
+      if(!('getBattery' in navigator)){ alert('Battery API not supported'); return; }
+      const b = await navigator.getBattery();
+      const pct = Math.round(b.level*100);
+      const ch = b.charging ? 'charging' : 'not charging';
+      alert(`Battery: ${pct}% (${ch})`);
+      log(`Battery status: ${pct}% (${ch})`);
+    }catch(e){ log('Battery error: '+e.message, 'err'); }
+  }
+
+  function deviceInfo(){
+    const ua = navigator.userAgent;
+    const plat = navigator.platform;
+    const lang = navigator.language;
+    const info = `UA: ${ua}\nPlatform: ${plat}\nLanguage: ${lang}`;
+    alert(info);
+    log('Device info shown');
+  }
+
+  // wake lock (keep screen on)
+  let wakeLock = null;
+  async function keepScreenOn(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        log('Wake Lock active (screen on)');
+        window.addEventListener('visibilitychange', async ()=>{
+          if(document.visibilityState === 'visible' && wakeLock === null){
+            try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(_){}
+          }
+        });
+      } else {
+        alert('Wake Lock API not supported in this browser');
+      }
+    }catch(e){ log('Wake Lock error: '+e.message); }
+  }
+  function allowSleep(){
+    if(wakeLock){ try{ wakeLock.release(); }catch(_){} wakeLock=null; log('Wake Lock released'); }
+  }
+
+  // vibrate
+  function vibrate(){
+    if('vibrate' in navigator){
+      navigator.vibrate([60,40,60,40,120]);
+      log('Vibration pattern played');
+    } else {
+      alert('Vibration not supported on this device');
+    }
+  }
+
+  // lock/unlock UI
+  function lockScreen(){
+    lockOverlay.style.display='flex';
+    log('Screen locked (UI)');
+  }
+  function unlockScreen(){
+    lockOverlay.style.display='none';
+    log('Screen unlocked (UI)');
+  }
+  unlockBtn.addEventListener('click', unlockScreen);
+
+  // open whatsapp
+  function openWhatsApp(){
+    try{ window.location.href = "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;end"; setTimeout(()=>window.open('https://web.whatsapp.com', '_blank'), 800); }catch(_){ window.open('https://web.whatsapp.com', '_blank'); }
+    log('WhatsApp request');
+  }
+  function openGallery(){ window.open('https://photos.google.com', '_blank'); log('Gallery opened'); }
+
+  // Power off / restart (UI simulation)
+  function powerOffAnimation(){
+    powerOverlay.style.display = 'flex';
+    restartText.textContent = 'Powering off...';
+    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
+    log('Simulated power off');
+  }
+  function restartAnimation(){
+    powerOverlay.style.display = 'flex';
+    restartText.textContent = 'Restarting...';
+    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
+    setTimeout(()=> {
+      document.body.style.filter='';
+      powerOverlay.style.display='none';
+      log('Simulated restart finished');
+    }, 3200);
+    log('Simulated restart');
+  }
+
+  // Screenshot using html2canvas (load dynamically)
+  async function takeScreenshot(){
+    if(typeof html2canvas === 'undefined'){
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    }
+    try{
+      speak('Taking screenshot');
+      const node = document.documentElement;
+      const canvas = await html2canvas(node, { logging:false, useCORS:true, scale:1 });
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url; a.download = 'screenshot.png'; document.body.appendChild(a); a.click(); a.remove();
+      log('Screenshot taken & downloaded');
+    }catch(e){ log('Screenshot failed: '+ e.message, 'err'); alert('Screenshot failed: ' + e.message); }
+  }
+
+  // News - open Google News search
+  function openNews(){
+    speak('Opening top news');
+    window.open('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en', '_blank');
+  }
+
+  // Self destruct effect using better canvas animation
   function runSelfDestruct(){
-    const c = boomCanvas; c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block'; const ctx = c.getContext('2d');
+    const c = boomCanvas;
+    c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block';
+    const ctx = c.getContext('2d');
     const sparks = [];
     for(let i=0;i<220;i++){
-      sparks.push({ x: window.innerWidth/2 + (Math.random()-0.5)*200, y: window.innerHeight/2 + (Math.random()-0.5)*200, vx: (Math.random()-0.5)*14, vy: (Math.random()-0.9)*14 - 4, r: Math.random()*6+2, life: Math.random()*100+40, color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,` });
+      sparks.push({
+        x: window.innerWidth/2 + (Math.random()-0.5)*200,
+        y: window.innerHeight/2 + (Math.random()-0.5)*200,
+        vx: (Math.random()-0.5)*14,
+        vy: (Math.random()-0.9)*14 - 4,
+        r: Math.random()*6+2,
+        life: Math.random()*100+40,
+        color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,`
+      });
     }
-    let t=0; speak('Self destruct sequence initiated. Three. Two. One.');
+    let t=0;
+    speak('Self destruct in 3... 2... 1...');
+    // screen shake
     const orig = document.body.style.transform || '';
     let id = setInterval(()=>{
-      ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(0,0,c.width,c.height);
-      sparks.forEach(p=>{ p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--; ctx.beginPath(); ctx.fillStyle = p.color + (p.life/140) + ')'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(0,0,c.width,c.height);
+      sparks.forEach(p=>{
+        p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--;
+        ctx.beginPath();
+        ctx.fillStyle = p.color + (p.life/140) + ')';
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      });
       t++;
       if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
-      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; setStatus('Self-destruct finished'); }
+      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; log('Self-destruct animation done'); }
     }, 16);
   }
 
-  // ---- Screenshot via html2canvas (load CDN) ----
-  async function takeScreenshot(){
-    if(typeof html2canvas === 'undefined') await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-    try{
-      speak('Taking screenshot'); const node = document.documentElement; const canvas = await html2canvas(node, { logging:false, useCORS:true, scale: window.devicePixelRatio || 1 }); const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = 'jarvis-screenshot.png'; a.click(); setStatus('Screenshot saved');
-    }catch(e){ setStatus('Screenshot failed: ' + e.message); }
-  }
-  function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('fail '+src)); document.head.appendChild(s); }); }
-
-  // ---- Mini utilities ----
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
-  function openSite(url){ window.open(url, '_blank'); }
-
-  // ---- Command engine: maps voice to actions ----
-  async function handleSpoken(raw){
-    if(!raw) return;
-    const text = raw.trim();
-    const lower = text.toLowerCase();
-
-    // If wakeOn is enabled, ensure wakeword present
-    if(wakeOn){
-      const wake = customWake.toLowerCase();
-      const allowed = [wake, 'hey jarvis', 'ok jarvis'];
-      let heardWake = false;
-      for(const w of allowed) if(lower.startsWith(w)) { heardWake = true; break; }
-      if(!heardWake){ setStatus('Ignored (wakeword required): ' + text); return; }
-      // strip wake phrase
-      let cmd = lower;
-      allowed.forEach(w=> cmd = cmd.replace(new RegExp('^' + escapeRegExp(w),'i'),'').trim());
-      return await runCommand(cmd || '');
-    } else {
-      return await runCommand(lower);
-    }
-  }
-
-  async function runCommand(lower){
-    if(!lower) { speak('Yes?'); return; }
-    setStatus('Executing: ' + lower);
-
-    // greetings
-    if(/^(hi|hello|hey)\b/.test(lower)){ speak('Hello boss. Jarvis at your service.'); return; }
-    if(lower.includes('who are you') || lower.includes('what is your name')){ speak('I am Jarvis, your assistant.'); return; }
-
-    // time/date
-    if(lower.includes('time')){ const now = new Date(); speak('The time is ' + now.toLocaleTimeString()); return; }
-    if(lower.includes('date')){ const now = new Date(); speak('Today is ' + now.toLocaleDateString()); return; }
-
-    // open sites
-    if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify|maps|whatsapp|gallery)\b/)){
-      if(lower.includes('youtube')) openSite('https://youtube.com');
-      else if(lower.includes('google')) openSite('https://google.com');
-      else if(lower.includes('wikipedia')) openSite('https://wikipedia.org');
-      else if(lower.includes('github')) openSite('https://github.com');
-      else if(lower.includes('spotify')) openSite('https://open.spotify.com');
-      else if(lower.includes('maps')) openSite('https://maps.google.com');
-      else if(lower.includes('whatsapp')) openSite('https://web.whatsapp.com');
-      else if(lower.includes('gallery')) openSite('https://photos.google.com');
-      speak('Opening ' + lower.split(' ')[1]); return;
-    }
-
-    // search
-    if(lower.startsWith('search ') || lower.startsWith('google ')){
-      const q = lower.replace(/^(search|google)\s+/,'').trim(); if(!q){ speak('What should I search?'); return; }
-      speak('Searching for ' + q); openSite('https://www.google.com/search?q=' + encodeURIComponent(q)); return;
-    }
-
-    // wiki
-    if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')){
-      const term = lower.replace(/^(wiki|wikipedia)\s+/,'').trim(); if(!term){ speak('What from Wikipedia?'); return; }
-      speak('Fetching summary for ' + term);
-      try{ const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term); const r = await fetch(api); if(!r.ok){ speak('No page found for ' + term); return; } const j = await r.json(); const extract = j.extract ? (j.extract.split('. ').slice(0,2).join('. ') + '.') : 'No summary.'; speak(extract); }catch(e){ speak('Failed to fetch Wikipedia.'); }
-      return;
-    }
-
-    // calculate
-    if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9+\-*/(). %]+$/.test(lower)){
-      const expr = lower.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,''); if(!expr){ speak('I could not parse the expression'); return; }
-      try{ const val = Function('"use strict";return (' + expr + ')')(); speak('Result is ' + val); }catch(e){ speak('Cannot calculate that'); } return;
-    }
-
-    // timer
-    if(lower.startsWith('set timer') || lower.match(/\btimer\b/)){
-      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|mins|secs)?/); if(!m){ speak('Tell me how long'); return; }
-      const num = parseInt(m[1],10); const unit = (m[2] || 'seconds'); const ms = unit.startsWith('min') ? num*60*1000 : num*1000;
-      speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-      setTimeout(()=>{ speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds')); alert('Timer finished'); }, ms); return;
-    }
-
-    // music
-    if(lower.includes('play music') || lower.includes('play spotify') || lower.includes('play song')){ speak('Opening music'); openSite('https://open.spotify.com'); return; }
-
-    // jokes / quotes
-    if(lower.includes('joke')){ const j = jokes[Math.floor(Math.random()*jokes.length)]; speak(j); return; }
-    if(lower.includes('motivate') || lower.includes('quote')){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return; }
-
-    // weather
-    if(lower.includes('weather')){ const m = lower.match(/weather in ([a-zA-Z\s]+)/); const q = m ? m[1].trim() : ''; if(q) { speak('Opening weather for ' + q); openSite('https://wttr.in/' + encodeURIComponent(q)); } else { speak('Opening weather'); openSite('https://wttr.in/?format=3'); } return; }
-
-    // translate
-    if(lower.startsWith('translate ')){ const m = lower.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i); if(m){ const phrase = m[1]; const target = m[2]; speak('Translating to ' + target); openSite('https://translate.google.com/?sl=auto&tl=' + encodeURIComponent(target) + '&text=' + encodeURIComponent(phrase) + '&op=translate'); } else { speak('Opening translate'); openSite('https://translate.google.com'); } return; }
-
-    // memory
-    if(lower.startsWith('remember ')){ const mem = lower.replace(/^remember\s+/,'').trim(); if(mem){ mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); speak('Remembered: ' + mem); } else speak('What should I remember?'); return; }
-    if(lower.includes('what do you remember') || lower.includes('show memories') || lower.includes('list memories')){ if(!mems.length){ speak('No memories'); return; } speak('You asked me to remember ' + mems.length + ' items. Opening memories.'); memPanel.style.display = 'block'; renderMemories(); return; }
-
-    // screenshot
-    if(lower.includes('screenshot') || lower.includes('capture screen')){ takeScreenshot(); return; }
-
-    // power
-    if(lower.includes('power off') || lower.includes('shutdown')){ powerOverlay.classList.add('show'); powerOverlay.style.display = 'flex'; powerOverlay.style.pointerEvents='auto'; setStatus('Simulated power off'); setTimeout(()=> document.body.style.filter='brightness(0)',700); return; }
-    if(lower.includes('restart')){ powerOverlay.classList.add('show'); powerOverlay.style.display='flex'; setStatus('Restarting...'); setTimeout(()=> document.body.style.filter='brightness(0)',700); setTimeout(()=>{ document.body.style.filter=''; powerOverlay.classList.remove('show'); powerOverlay.style.display='none'; setStatus('Restart complete'); },3200); return; }
-
-    // flashlight
-    if(lower.includes('flashlight on') || lower.includes('torch on')){ flashlight(true); return; }
-    if(lower.includes('flashlight off') || lower.includes('torch off')){ flashlight(false); return; }
-
-    // camera
-    if(lower.includes('open camera') || lower.includes('show camera')){ usingBackCam = !/front/.test(lower) ; await openCamera(usingBackCam); return; }
-    if(lower.includes('close camera') || lower.includes('hide camera')){ closeCamera(); return; }
-    if(lower.includes('snap') || lower.includes('take snapshot') || lower.includes('take photo')){ await takeCameraSnap(); return; }
-
-    // vibrate
-    if(lower.includes('vibrate')){ if('vibrate' in navigator){ navigator.vibrate([60,40,60]); speak('Vibrating'); } else speak('Vibration not supported'); return; }
-
-    // lock/unlock UI
-    if(lower.includes('lock screen')){ document.getElementById('powerOverlay').classList.add('show'); document.getElementById('powerOverlay').style.display='flex'; setStatus('Screen locked (simulated)'); return; }
-    if(lower.includes('unlock screen')){ document.getElementById('powerOverlay').classList.remove('show'); document.getElementById('powerOverlay').style.display='none'; setStatus('Unlocked'); return; }
-
-    // news
-    if(lower.includes('news') || lower.includes('top news')){ speak('Opening top news'); openSite('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en'); return; }
-
-    // PW special
-    if(lower.includes('physics wallah') || lower.includes('open pw')){ speak('Opening Physics Wallah'); openSite('https://www.pw.live/'); return; }
-
-    // games
-    if(lower.includes('rock paper scissors') || lower.includes('play rps')){ playRPS(); return; }
-    if(lower.includes('guess number') || lower.includes('play guess')){ playGuess(); return; }
-
-    // face enroll/login
-    if(lower.includes('enroll face') || lower.includes('capture face')){ await captureFaceEnroll(); return; }
-    if(lower.includes('face login') || lower.includes('login with face')){ await faceLogin(); return; }
-
-    // self destruct
-    if(lower.includes('self destruct')){ runSelfDestruct(); return; }
-
-    // fallback: ask to search
-    speak('I did not understand. Should I search the web for ' + lower + '?');
-    if(confirm('Search web for "' + lower + '"?')) openSite('https://www.google.com/search?q=' + encodeURIComponent(lower));
-  }
-
-  // ---- Games ----
+  // quick games
   function playRPS(){
-    const choices = ['rock','paper','scissors']; const user = prompt('Choose rock, paper or scissors:'); if(!user) return; const u = user.toLowerCase().trim(); if(!choices.includes(u)){ alert('Invalid'); return; } const bot = choices[Math.floor(Math.random()*3)]; let res = 'Draw'; if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!'; else if(u===bot) res='Draw'; else res='You lose!'; speak(`You chose ${u}. I chose ${bot}. ${res}`); alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
+    const choices = ['rock','paper','scissors'];
+    const user = prompt('Choose rock, paper or scissors:');
+    if(!user) return;
+    const u = user.toLowerCase();
+    if(!choices.includes(u)){ alert('Invalid choice'); return; }
+    const bot = choices[Math.floor(Math.random()*3)];
+    let res='Draw';
+    if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
+    else if(u===bot) res='Draw';
+    else res='You lose!';
+    speak(`You chose ${u}. I chose ${bot}. ${res}`);
+    alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
   }
   function playGuess(){
-    const target = Math.floor(Math.random()*50)+1; let tries=0; let ok=false; while(tries<7){ const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries)); if(g===null) return; const n = parseInt(g,10); if(isNaN(n)){ alert('Enter a number'); continue; } tries++; if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; } else if(n<target){ speak('Higher'); alert('Higher'); } else { speak('Lower'); alert('Lower'); } } if(!ok){ speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); } }
-
-  // ---- Render memories on panel ----
-  function renderMemories(){ memPanel.style.display = 'block'; memList.innerHTML = ''; if(!mems.length){ memList.textContent = 'No memories saved'; return; } mems.slice().reverse().forEach((m,i)=>{ const idx = mems.length - 1 - i; const d = document.createElement('div'); d.style.padding='8px'; d.style.borderBottom='1px dashed rgba(255,255,255,0.03)'; d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${new Date(m.time).toLocaleString()}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="margin-top:8px"><button data-i="${idx}" style="background:none;border:1px solid rgba(0,255,255,0.06);border-radius:8px;padding:6px;color:var(--neon)">Delete</button></div>`; memList.appendChild(d); }); memList.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ const idx = parseInt(b.getAttribute('data-i'),10); mems.splice(idx,1); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory deleted'); })); }
-
-  // ---- start recognition on activation (user gesture) ----
-  function startRecognition(){
-    if(!SpeechRecognition){ setStatus('SpeechRecognition unsupported'); alert('Use Chrome/Edge for voice'); return; }
-    if(!recognition) setupRecognition();
-    try{ recognition.start(); }catch(e){ console.warn('start error', e); }
-  }
-
-  // ---- expose some debugging commands by long-press (hidden) ----
-  // Long-press top-left corner to toggle wake-word and to enroll face (power user)
-  let longTimer = null, longCount = 0;
-  document.addEventListener('touchstart', (e)=>{
-    const x = e.touches[0].clientX, y = e.touches[0].clientY;
-    if(x < 60 && y < 60){
-      longTimer = setTimeout(()=>{ longCount++; if(longCount % 2 === 1){ wakeOn = !wakeOn; setStatus('Wake-word ' + (wakeOn ? 'enabled' : 'disabled')); speak('Wake word ' + (wakeOn ? 'enabled' : 'disabled')); } else { captureFaceEnroll(); } }, 800);
+    const target = Math.floor(Math.random()*50)+1;
+    let tries=0; let ok=false;
+    while(tries<7){
+      const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries));
+      if(g===null) return;
+      const n = parseInt(g,10);
+      if(isNaN(n)){ alert('Enter a number'); continue; }
+      tries++;
+      if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; }
+      else if(n<target){ speak('Higher'); alert('Higher'); }
+      else { speak('Lower'); alert('Lower'); }
     }
+    if(!ok) { speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
+  }
+
+  // small helper to dynamically load script
+  function loadScript(src){
+    return new Promise((res, rej)=>{
+      const s = document.createElement('script');
+      s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  // EXTRA: handle extra commands BEFORE main handler (typed & observed voice lines)
+  function handleExtraCommand(raw){
+    if(!raw) return false;
+    const lower = raw.toLowerCase().trim();
+
+    // direct map
+    if(/^(power\s*off( phone)?|shutdown( phone)?)$/.test(lower)){ powerOffAnimation(); return true; }
+    if(/^(restart( phone)?|reboot( phone)?)$/.test(lower)){ restartAnimation(); return true; }
+    if(/^(flashlight|torch) on$/.test(lower)){ flashlight(true); return true; }
+    if(/^(flashlight|torch) off$/.test(lower)){ flashlight(false); return true; }
+    if(/^open camera$/.test(lower)){ openCamera(); return true; }
+    if(/^close camera$/.test(lower)){ closeCamera(); return true; }
+    if(/^open whatsapp$/.test(lower)){ openWhatsApp(); return true; }
+    if(/^open gallery$/.test(lower)){ openGallery(); return true; }
+    if(/^battery status$/.test(lower)){ batteryStatus(); return true; }
+    if(/^device info$/.test(lower)){ deviceInfo(); return true; }
+    if(/^keep screen on$/.test(lower)){ keepScreenOn(); return true; }
+    if(/^allow sleep$/.test(lower)){ allowSleep(); return true; }
+    if(/^vibrate$/.test(lower)){ vibrate(); return true; }
+    if(/^lock screen$/.test(lower)){ lockScreen(); return true; }
+    if(/^unlock screen$/.test(lower)){ unlockScreen(); return true; }
+    if(/^news$/.test(lower)){ openNews(); return true; }
+    if(/^weather$/.test(lower)){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
+    if(/^play spotify$/.test(lower)){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
+    if(/^screenshot$/.test(lower)){ takeScreenshot(); return true; }
+    if(/^motivate$/.test(lower)){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
+    if(/^self destruct$/.test(lower)){ runSelfDestruct(); return true; }
+    if(/^play music$/.test(lower)){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
+    if(/^remember /.test(lower)){ // typed memory quick add
+      const mem = raw.replace(/^remember\s+/i,'').trim();
+      if(mem){ const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]'); mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory saved'); }
+      return true;
+    }
+    // quick open physics
+    if(lower.startsWith('open ') && (lower.includes('pw') || lower.includes('physics'))){
+      window.open('https://www.pw.live/', '_blank'); return true;
+    }
+    // news/weather/spotify handled above
+    return false;
+  }
+
+  // Observe transcript UI nodes to catch voice "User: ..." entries (so addons work for voice)
+  const seen = new Set();
+  const observer = new MutationObserver((muts)=>{
+    muts.forEach(m=>{
+      m.addedNodes && Array.from(m.addedNodes).forEach(node=>{
+        if(node && node.textContent && node.textContent.startsWith('User: ')){
+          const cmd = node.textContent.slice(6).trim();
+          if(!seen.has(cmd)){
+            seen.add(cmd);
+            // first try extras
+            handleExtraCommand(cmd);
+          }
+        }
+      });
+    });
   });
-  document.addEventListener('touchend', ()=>{ if(longTimer) clearTimeout(longTimer); longTimer = null; });
-
-  // ---- activation overlay click already defined ----
-
-  // ---- small global helpers ----
-  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-  // ---- Web installability prompt handled by browser; register service worker ----
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').then(()=> console.log('SW registered')).catch(e=> console.warn('SW failed', e));
+  if(transcriptEl){
+    observer.observe(transcriptEl, { childList:true });
   }
 
-  // ---- initial UI and state ----
-  function init(){
-    setStatus('Jarvis ready — tap the screen to activate microphone');
-    renderMemories();
-    populateVoices();
+  // voice meter using WebAudio analyser (for mood detection)
+  async function startVoiceMeter(){
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      if(!audioContext){
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video:false });
+      meterSource = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      meterSource.connect(analyser);
+      const bufferLength = analyser.frequencyBinCount;
+      meterDataArray = new Uint8Array(bufferLength);
+      const loop = ()=>{
+        analyser.getByteFrequencyData(meterDataArray);
+        let sum=0;
+        for(let i=0;i<meterDataArray.length;i++){ sum += meterDataArray[i]; }
+        const avg = sum / meterDataArray.length;
+        const pct = Math.min(100, Math.round((avg/255)*100));
+        voiceMeter.style.width = pct + '%';
+        // mood heuristic
+        if(pct > 45){
+          // energetic
+          // don't be too chatty
+        } else if(pct < 10){
+          // quiet - maybe sleepy
+        }
+        requestVoiceMeter = requestAnimationFrame(loop);
+      };
+      requestVoiceMeter = requestAnimationFrame(loop);
+      // stop stream on recognition.onend by stopVoiceMeter
+    }catch(e){
+      // ignore meter errors
+    }
   }
-  init();
+  let requestVoiceMeter = null;
+  function stopVoiceMeter(){
+    if(requestVoiceMeter){ cancelAnimationFrame(requestVoiceMeter); requestVoiceMeter = null; }
+    if(meterSource && meterSource.mediaStream) {
+      meterSource.mediaStream.getTracks().forEach(t=>t.stop());
+      meterSource.disconnect && meterSource.disconnect();
+    }
+    if(analyser){ analyser.disconnect && analyser.disconnect(); analyser = null; }
+    audioContext = audioContext; // keep context
+    voiceMeter.style.width = '0%';
+  }
 
-  // ---- global exposures for debugging in console ----
-  window.Jarvis = { speak, openSite, runSelfDestruct, openCamera, closeCamera, flashlight, takeScreenshot, captureFaceEnroll, faceLogin: faceLogin, mems };
+  // Expose some functions for debugging
+  window.Jarvis = {
+    speak, takeScreenshot, openCamera, closeCamera, flashlight, restartAnimation, powerOffAnimation, openNews, keepScreenOn, allowSleep, showMemories, renderMemories
+  };
 
-  // ---- auto-start recognition when overlay is clicked (done above) ----
-
-})(); // end IIFE
+})();
 </script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </body>
 </html>
