@@ -6,29 +6,8 @@
 <title>Jarvis — Web Voice Assistant (Ultimate)</title>
 <link rel="manifest" href="manifest_v2.json">
 <script>
-  let player = document.getElementById("player");
-let isPlaying = false;
-  const video = document.getElementById("video");
-
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => {
-  video.srcObject = stream;
-})
-.catch(err => {
-  console.log("Camera error", err);
-});
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(e => console.warn('SW register failed', e));
-  }
-  function checkFace(){
-  // DEMO MATCH (change later if needed)
-  let isOwner = true;   // 👈 yahan control hai
-
-  if(isOwner){
-    speak("Welcome Boss");
-  } else {
-    speak("Face did not match. You are not owner");
-  }
   }
 </script>
   
@@ -96,14 +75,6 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
 </style>
 </head>
 <body>
-  <iframe id="player" width="300" height="200"
-allow="autoplay; encrypted-media"
-allowfullscreen>
-</iframe>
-  <video id="video" width="250" height="200" autoplay></video>
-<br>
-<button onclick="checkFace()">Face Login</button>
-  <div class="wrap">
     <header>
       <div>
         <h1>Jarvis — Web Voice Assistant</h1>
@@ -717,48 +688,27 @@ allowfullscreen>
       closeCamera();
       return;
     }
-    if(text.includes("play")){
+    if(text.includes("youtube")){
   
-  let song = text.replace("play", "").trim();
+  // song name extract karo
+  let song = text.replace("play", "")
+                 .replace("on youtube", "")
+                 .replace("youtube", "")
+                 .trim();
 
   if(song === ""){
-    speak("Tell me song name");
+    speak("Please tell song name");
   } else {
 
-    let player = document.getElementById("player");
+    let url = "https://www.youtube.com/embed?listType=search&list=" 
+              + encodeURIComponent(song) 
+              + "&autoplay=1&mute=1";
 
-    player.src = "https://www.youtube.com/embed?listType=search&list="
-                 + encodeURIComponent(song)
-                 + "&autoplay=1&mute=1";
+    window.open(url, "_blank");
 
-    speak("Playing " + song);
+    speak("Playing " + song + " on YouTube");
   }
-    }
-    if(text.includes("pause")){
-  document.getElementById("player").src = "";
-  speak("Paused");
-    }
-if(text.includes("next")){
-  if(player.src !== ""){
-    player.src = player.src; // reload = next video
-    speak("Playing next song");
-  }
-  
-}
-    if(text.includes("stop")){
-  player.src = "";
-  isPlaying = false;
-  speak("Music stopped");
-      
-    }
-    if(text.includes("volume up")){
-  speak("Volume increased");
-      
-}
-
-if(text.includes("volume down")){
-  speak("Volume decreased");
-  
+      return;
 }
     
     // whatsapp/gallery
