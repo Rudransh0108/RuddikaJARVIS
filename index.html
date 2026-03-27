@@ -6,6 +6,8 @@
 <title>Jarvis — Web Voice Assistant (Ultimate)</title>
 <link rel="manifest" href="manifest_v2.json">
 <script>
+  let player = document.getElementById("player");
+let isPlaying = false;
   const video = document.getElementById("video");
 
 navigator.mediaDevices.getUserMedia({ video: true })
